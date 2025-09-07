@@ -13,9 +13,19 @@ const generateOtp = () => {
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, businessName, address } = req.body;
-    if (!name || !email || !password || !role || !address || !address.street || !address.city || !address.state || !address.zipCode) {
-      return res.status(400).json({ msg: 'Please enter all required fields, including a complete address.' });
+    // Basic required checks for top-level fields
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ msg: 'Please enter all required fields.' });
     }
+
+    // Ensure an address object exists: if nested address fields are missing, fill with empty strings
+    const safeAddress = address && typeof address === 'object' ? {
+      street: address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+      zipCode: address.zipCode || '',
+      coords: address.coords || undefined,
+    } : { street: '', city: '', state: '', zipCode: '' };
 
     let user = await User.findOne({ email });
     if (user) {
@@ -49,7 +59,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       role,
       businessName,
-      address,
+      address: safeAddress,
       otp,
       otpExpires,
       isVerified: false,
