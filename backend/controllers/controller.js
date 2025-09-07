@@ -13,11 +13,7 @@ const generateOtp = () => {
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, businessName, address } = req.body;
-    console.log('Register attempt for email:', email);
-    console.log('Received address:', address);
-
     if (!name || !email || !password || !role || !address || !address.street || !address.city || !address.state || !address.zipCode) {
-      console.log('Validation failed: Missing required fields or incomplete address.');
       return res.status(400).json({ msg: 'Please enter all required fields, including a complete address.' });
     }
 
@@ -61,7 +57,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       role,
       businessName,
-      address,
+      address: safeAddress,
       otp,
       otpExpires,
       isVerified: false,
