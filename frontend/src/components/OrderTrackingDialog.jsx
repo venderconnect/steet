@@ -63,7 +63,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+    <DialogContent className="bg-white text-black dark:bg-gray-800 dark:text-white">
         <DialogHeader>
           <DialogTitle>Track Order #{orderId?.substring(0, 8)}</DialogTitle>
           <DialogDescription>Status updates for your group order.</DialogDescription>
@@ -76,37 +76,35 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
           ) : trackingInfo ? (
             <div className="space-y-4">
               <div className="h-64 mb-4 relative">
-                <>
-                  {mapError ? (
-                    <p className="text-destructive">{mapError}</p>
-                  ) : !supplierLocation ? (
-                    <div className="flex justify-center items-center h-full"><p>Supplier location not available for tracking.</p></div>
-                  ) : (center && typeof center.lat === 'number' && typeof center.lng === 'number') ? (
-                    <MapContainer center={[center.lat, center.lng]} zoom={8} style={{ height: '100%', width: '100%' }}>
-                      <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                {mapError ? (
+                  <p className="text-destructive">{mapError}</p>
+                ) : !supplierLocation ? (
+                  <div className="flex justify-center items-center h-full"><p>Supplier location not available for tracking.</p></div>
+                ) : (center && typeof center.lat === 'number' && typeof center.lng === 'number') ? (
+                  <MapContainer center={[center.lat, center.lng]} zoom={8} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+                    {(userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' &&
+                      supplierLocation && typeof supplierLocation.lat === 'number' && typeof supplierLocation.lng === 'number') && (
+                      <RoutingMachine
+                        start={[userLocation.lat, userLocation.lng]}
+                        end={[supplierLocation.lat, supplierLocation.lng]}
+                        onRouteFound={handleRouteFound}
+                        apiKey={googleMapsApiKey} // Pass the API key here
                       />
-                      {(userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' &&
-                        supplierLocation && typeof supplierLocation.lat === 'number' && typeof supplierLocation.lng === 'number') && (
-                        <RoutingMachine
-                          start={[userLocation.lat, userLocation.lng]}
-                          end={[supplierLocation.lat, supplierLocation.lng]}
-                          onRouteFound={handleRouteFound}
-                          apiKey={googleMapsApiKey} // Pass the API key here
-                        />
-                      )}
-                    </MapContainer>
-                  ) : (
-                    <div className="flex justify-center items-center h-full"><p>Map data not fully available.</p></div>
-                  )}
-                  {routeSummary && (
-                    <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
-                      <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>
-                      <p><b>Estimated Time:</b> {Math.round(routeSummary.totalTime / 60)} minutes</p>
-                    </div>
-                  )}
-                </>
+                    )}
+                  </MapContainer>
+                ) : (
+                  <div className="flex justify-center items-center h-full"><p>Map data not fully available.</p></div>
+                )}}
+                {routeSummary && (
+                  <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
+                    <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>
+                    <p><b>Estimated Time:</b> {Math.round(routeSummary.totalTime / 60)} minutes</p>
+                  </div>
+                )}
               </div>
               <ul className="space-y-4">
                 {trackingInfo.events.map((event, index) => (
