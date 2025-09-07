@@ -95,7 +95,7 @@ const AddProductDialog = () => {
           Add New Product
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+  <DialogContent className="sm:max-w-[425px] bg-white text-black dark:bg-gray-800 dark:text-white">
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>

@@ -63,7 +63,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+    <DialogContent className="bg-white text-black dark:bg-gray-800 dark:text-white">
         <DialogHeader>
           <DialogTitle>Track Order #{orderId?.substring(0, 8)}</DialogTitle>
           <DialogDescription>Status updates for your group order.</DialogDescription>
@@ -98,7 +98,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
                   </MapContainer>
                 ) : (
                   <div className="flex justify-center items-center h-full"><p>Map data not fully available.</p></div>
-                )}}
+                )}
                 {routeSummary && (
                   <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
                     <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>
