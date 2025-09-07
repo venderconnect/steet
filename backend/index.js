@@ -15,8 +15,17 @@ const app = express();
 // Body parser
 app.use(express.json());
 
-// Enable CORS
-app.use(cors());
+// Enable CORS - allow frontend origin and required headers
+const allowedOrigin = process.env.FRONTEND_URL || '*';
+app.use(cors({
+	origin: allowedOrigin,
+	methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+	allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+	credentials: true,
+}));
+
+// Log effective CORS origin for debugging
+console.log(`CORS allowed origin: ${allowedOrigin}`);
 
 // Mount routers
 app.use('/api', routes);

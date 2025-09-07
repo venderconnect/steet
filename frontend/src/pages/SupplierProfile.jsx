@@ -23,10 +23,14 @@ function haversineDistance([lat1, lon1], [lat2, lon2]) {
 
 // Fix default marker icon issue in many bundlers
 delete L.Icon.Default.prototype._getIconUrl;
+const markerRetina = new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href;
+const markerIcon = new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href;
+const markerShadow = new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href;
+
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+  iconRetinaUrl: markerRetina,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 });
 
 const SupplierProfile = () => {
