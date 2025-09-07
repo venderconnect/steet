@@ -38,3 +38,9 @@ export const getSupplierProfile = (supplierId) => {
 export const updateSupplierCoords = (supplierId, coords) => {
   return api.put(`/suppliers/${supplierId}/coords`, coords);
 };
+
+export const getNearbySuppliers = (lat, lng, radiusKm = 50, productId) => {
+  const params = { lat, lng, radiusKm };
+  if (productId) params.productId = productId;
+  return api.get('/suppliers', { params });
+};

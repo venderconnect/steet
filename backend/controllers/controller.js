@@ -122,6 +122,61 @@ exports.updateSupplierCoords = async (req, res) => {
   }
 };
 
+// Get nearby suppliers (simple server-side Haversine filter)
+exports.getNearbySuppliers = async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 50, productId } = req.query;
+    if (!lat || !lng) return res.status(400).json({ msg: 'lat and lng query params required' });
+
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    const radius = Number(radiusKm);
+
+    // If productId provided, fetch the product and only consider its supplier
+    if (productId) {
+      const product = await Product.findById(productId).populate('supplier', 'name businessName address');
+      if (!product) return res.status(404).json({ msg: 'Product not found' });
+      const s = product.supplier;
+      const coords = s?.address?.coords;
+      if (!coords) return res.json({ suppliers: [] });
+      const distance = haversineDistance([latNum, lngNum], [coords.lat, coords.lng]);
+      if (distance <= radius) {
+        return res.json({ suppliers: [{ supplier: s, distanceKm: distance } ] });
+      }
+      return res.json({ suppliers: [] });
+    }
+
+    // Otherwise fetch all suppliers and compute distance
+    const suppliers = await User.find({ role: 'supplier' }).select('name businessName address');
+    const result = suppliers
+      .map(s => {
+        const coords = s.address?.coords;
+        if (!coords) return null;
+        const distance = haversineDistance([latNum, lngNum], [coords.lat, coords.lng]);
+        return { supplier: s, distanceKm: distance };
+      })
+      .filter(x => x && x.distanceKm <= radius)
+      .sort((a,b) => a.distanceKm - b.distanceKm);
+
+    res.json({ suppliers: result });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// Helper: haversine distance (km)
+function haversineDistance([lat1, lon1], [lat2, lon2]) {
+  function toRad(x) { return x * Math.PI / 180; }
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 
 exports.getMyProducts = async (req, res) => {
   try {

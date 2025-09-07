@@ -25,5 +25,7 @@ router.put('/orders/:orderId/modify', auth, authorize('vendor', 'customer'), con
 router.get('/suppliers/:id', controller.getSupplierProfile);
 // Update supplier coords (supplier only)
 router.put('/suppliers/:id/coords', auth, authorize('supplier'), controller.updateSupplierCoords);
+// Nearby suppliers
+router.get('/suppliers', controller.getNearbySuppliers); // accepts lat,lng,radiusKm,productId as query
 
 module.exports = router;
