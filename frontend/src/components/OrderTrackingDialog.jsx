@@ -7,6 +7,7 @@ import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
 import RoutingMachine from './RoutingMachine';
 
 const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY; // Get API key
   const { data: trackingData, isLoading, isError } = useQuery({
     queryKey: ['orderTracking', orderId],
     queryFn: () => getOrderTracking(orderId),
@@ -79,17 +80,25 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
                   <p className="text-destructive">{mapError}</p>
                 ) : !supplierLocation ? (
                   <div className="flex justify-center items-center h-full"><p>Supplier location not available for tracking.</p></div>
-                ) : (
+                ) : (center && typeof center.lat === 'number' && typeof center.lng === 'number') ? (
                   <MapContainer center={[center.lat, center.lng]} zoom={8} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
-                    {userLocation && userLocation.lat && userLocation.lng && supplierLocation && supplierLocation.lat && supplierLocation.lng && (
-                      <RoutingMachine start={[userLocation.lat, userLocation.lng]} end={[supplierLocation.lat, supplierLocation.lng]} onRouteFound={handleRouteFound} />
+                    {(userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number' &&
+                      supplierLocation && typeof supplierLocation.lat === 'number' && typeof supplierLocation.lng === 'number') && (
+                      <RoutingMachine
+                        start={[userLocation.lat, userLocation.lng]}
+                        end={[supplierLocation.lat, supplierLocation.lng]}
+                        onRouteFound={handleRouteFound}
+                        apiKey={googleMapsApiKey} // Pass the API key here
+                      />
                     )}
                   </MapContainer>
-                )}
+                ) : (
+                  <div className="flex justify-center items-center h-full"><p>Map data not fully available.</p></div>
+                )}}
                 {routeSummary && (
                   <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
                     <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>

@@ -34,7 +34,7 @@ const ProductSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
   pricePerKg: { type: Number, required: true },
-  image: { type: String },
+  imageUrl: { type: String }, // Changed from 'image' to 'imageUrl'
   category: { type: String, required: true },
   unit: { type: String, default: 'kg' },
   minOrderQty: { type: Number, required: true },

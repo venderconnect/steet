@@ -5,9 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Package, TrendingUp, Clock, Truck } from 'lucide-react';
 import AddProductDialog from '@/components/AddProductDialog';
+import OrderTrackingDialog from '@/components/OrderTrackingDialog'; // Import OrderTrackingDialog
+import { useState } from 'react'; // Import useState
 
 const SupplierDashboard = () => {
   const queryClient = useQueryClient();
+  const [isTrackOpen, setIsTrackOpen] = useState(false); // State for tracking dialog
+  const [selectedOrder, setSelectedOrder] = useState(null); // State for selected order
 
   const { data: productsData, isLoading: isLoadingProducts, isError: isProductsError } = useQuery({
     queryKey: ['myProducts'],
@@ -34,6 +38,11 @@ const SupplierDashboard = () => {
       queryClient.invalidateQueries(['supplierGroupOrders']);
     },
   });
+
+  const handleTrackClick = (order) => {
+    setSelectedOrder(order);
+    setIsTrackOpen(true);
+  };
 
   const activeOrders = groupOrders.filter(order => order.status === 'open');
   const processingOrders = groupOrders.filter(order => order.status === 'completed' || order.status === 'approved');
@@ -88,6 +97,11 @@ const SupplierDashboard = () => {
                               </button>
                             </div>
                           )}
+                          {order.status === 'approved' && ( // Add Track button for approved orders
+                            <button className="btn btn-sm btn-info" onClick={() => handleTrackClick(order)}>
+                              Track
+                            </button>
+                          )}
                           {approveMutation.isError && <p className="text-destructive text-xs">Error approving</p>}
                           {rejectMutation.isError && <p className="text-destructive text-xs">Error rejecting</p>}
                         </TableCell>
@@ -126,6 +140,12 @@ const SupplierDashboard = () => {
           </Card>
         </div>
       </div>
+    {/* Order Tracking Dialog */}
+      <OrderTrackingDialog 
+        orderId={selectedOrder?._id} 
+        isOpen={isTrackOpen} 
+        onClose={() => setIsTrackOpen(false)} 
+      />
     </div>
   );
 };

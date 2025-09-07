@@ -3,14 +3,21 @@ import { useMap } from "react-leaflet";
 import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 import L from "leaflet";
 import "leaflet-routing-machine";
+// Import the Google routing machine plugin
+import "lrm-google"; // This import makes L.Routing.Google available
 
-const RoutingMachine = ({ start, end, onRouteFound }) => {
+const RoutingMachine = ({ start, end, onRouteFound, apiKey }) => { // Add apiKey to props
   const map = useMap();
 
   useEffect(() => {
-    if (!map || !start || !end) return;
+    if (!map || !start || !end || !apiKey) return; // Ensure apiKey is present
 
-    const routingControl = L.Routing.control({
+    // Remove existing routing control if any to prevent duplicates on re-render
+    if (map.routingControl) {
+      map.removeControl(map.routingControl);
+    }
+
+    const routingControl = L.Routing.google({ // Use L.Routing.google
       waypoints: [L.latLng(start[0], start[1]), L.latLng(end[0], end[1])],
       routeWhileDragging: true,
       lineOptions: {
@@ -20,7 +27,12 @@ const RoutingMachine = ({ start, end, onRouteFound }) => {
       addWaypoints: false,
       draggableWaypoints: false,
       fitSelectedRoutes: true,
+      // Pass the API key to the Google routing control
+      apiKey: apiKey,
     }).addTo(map);
+
+    // Store the routing control on the map for easy removal
+    map.routingControl = routingControl;
 
     routingControl.on('routesfound', function (e) {
       const routes = e.routes;
@@ -29,31 +41,17 @@ const RoutingMachine = ({ start, end, onRouteFound }) => {
         onRouteFound(summary);
       }
 
-      // Simulate live tracking
-      const route = routes[0].coordinates;
-      const packageMarker = L.marker(route[0], {
-        icon: L.icon({
-          iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-          iconSize: [25, 41],
-          iconAnchor: [12, 41],
-        }),
-      }).addTo(map);
-
-      let i = 0;
-      const interval = setInterval(() => {
-        if (i < route.length) {
-          packageMarker.setLatLng(route[i]);
-          i++;
-        } else {
-          clearInterval(interval);
-        }
-      }, 1000); // Adjust the interval for speed
+      // Removed simulated live tracking.
+      // Real live tracking would involve updating a marker based on actual data.
     });
 
     return () => {
-      map.removeControl(routingControl);
+      if (map.routingControl) {
+        map.removeControl(map.routingControl);
+        map.routingControl = null;
+      }
     };
-  }, [map, start, end, onRouteFound]);
+  }, [map, start, end, onRouteFound, apiKey]); // Add apiKey to dependency array
 
   return null;
 };

@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/controller');
 const { auth, authorize } = require('../middleware/middleware');
+const upload = require('../middleware/upload'); // Import the upload middleware
 
 // Auth
 router.post('/register', controller.register);
 router.post('/login', controller.login);
 
 // Products
-router.post('/products', auth, authorize('supplier'), controller.createProduct);
+router.post('/products', auth, authorize('supplier'), upload.single('image'), controller.createProduct);
 router.get('/products', auth, controller.getProducts);
 router.get('/products/my-products', auth, authorize('supplier'), controller.getMyProducts);
 router.post('/products/:id/review', auth, controller.createProductReview); // NEW

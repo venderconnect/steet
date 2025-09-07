@@ -50,17 +50,31 @@ exports.login = async (req, res) => {
 // --- Product Controller ---
 // (createProduct, getProducts, getMyProducts remain the same)
 exports.createProduct = async (req, res) => {
-  try {
-    const { name, description, pricePerKg, image, category, unit, minOrderQty, isPrepped, availableQty } = req.body;
+  try {
+    const { name, description, price, category, unit, quantity, isPrepped } = req.body;
+    const imageUrl = req.file ? req.file.path : null; // Get image URL from Cloudinary
+
+    // Validate required fields
+    if (!name || !description || !price || !category || !unit || !quantity) {
+      return res.status(400).json({ msg: 'Please enter all required fields.' });
+    }
+
     const product = new Product({
-      name, description, pricePerKg, image, category, unit, minOrderQty, isPrepped, availableQty,
+      name,
+      description,
+      pricePerKg: price, // Assuming price is per kg, adjust if needed
+      imageUrl, // Store the Cloudinary image URL
+      category,
+      unit,
+      availableQty: quantity, // Store the available quantity
+      isPrepped,
       supplier: req.user.id
     });
-    await product.save();
-    res.status(201).json(product);
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+    await product.save();
+    res.status(201).json(product);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 };
 
 
