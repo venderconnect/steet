@@ -36,12 +36,11 @@ exports.register = async (req, res) => {
         const otp = generateOtp();
         const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-                await User.updateOne(
-          { _id: user._id },
-          { $set: { otp: otp, otpExpires: otpExpires } }
+                user = await User.findByIdAndUpdate(
+          user._id,
+          { $set: { otp: otp, otpExpires: otpExpires } },
+          { new: true, runValidators: false } // Do not run validators on update
         );
-        // Re-fetch the user to ensure the 'user' object is up-to-date for subsequent use if any
-        user = await User.findById(user._id);
 
         const message = `Your OTP for StreetFood Connect registration is: ${otp}. It is valid for 10 minutes.`;
         try {
@@ -147,12 +146,11 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ msg: 'OTP has expired. Please request a new one.' });
     }
 
-    await User.updateOne(
-      { _id: user._id },
-      { $set: { isVerified: true, otp: undefined, otpExpires: undefined } }
+    user = await User.findByIdAndUpdate(
+      user._id,
+      { $set: { isVerified: true, otp: undefined, otpExpires: undefined } },
+      { new: true, runValidators: false } // Do not run validators on update
     );
-    // Re-fetch the user to ensure the 'user' object is up-to-date for subsequent use if any
-    user = await User.findById(user._id);
 
     // Generate token for the newly verified user
     const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -181,15 +179,19 @@ exports.getProfile = async (req, res) => {
 // (createProduct, getProducts, getMyProducts remain the same)
 exports.createProduct = async (req, res) => {
   try {
+    console.log('Received product creation request body:', req.body);
+    console.log('Received product image file:', req.file);
     // Accept both multipart file upload (req.file) and JSON body with base64 image (req.body.image)
     const { name, description, pricePerKg, category, unit, minOrderQty, isPrepped, availableQty } = req.body;
     // prefer req.file (Cloudinary) if present, otherwise accept base64 image string from body
     const imageUrl = req.file ? req.file.path : (req.body.image || null);
 
     // Validate required fields (description optional)
-    if (!name || !pricePerKg || !category || !unit || !minOrderQty) {
+    if (!name || !pricePerKg || !category || !minOrderQty) { // Removed unit from this check
       return res.status(400).json({ msg: 'Please enter all required fields.' });
     }
+    // Ensure unit has a default if not provided by frontend
+    const productUnit = unit || 'kg'; // Set default to 'kg' if unit is falsy
 
     const product = new Product({
       name,
@@ -197,7 +199,7 @@ exports.createProduct = async (req, res) => {
       pricePerKg: Number(pricePerKg),
       imageUrl,
       category,
-      unit,
+      unit: productUnit,
       minOrderQty: Number(minOrderQty),
       availableQty: availableQty ? Number(availableQty) : 0,
       isPrepped: isPrepped === 'true' || isPrepped === true,

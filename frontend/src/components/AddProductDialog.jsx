@@ -75,6 +75,7 @@ const AddProductDialog = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('formData before sending:', formData);
     const formDataToSend = new FormData();
     formDataToSend.append('name', formData.name);
     formDataToSend.append('description', formData.description);
@@ -86,6 +87,9 @@ const AddProductDialog = () => {
     formDataToSend.append('availableQty', formData.availableQty);
     if (formData.image) {
       formDataToSend.append('image', formData.image);
+    }
+    for (let pair of formDataToSend.entries()) {
+        console.log(pair[0]+ ', ' + pair[1]);
     }
     addProduct(formDataToSend);
   };
