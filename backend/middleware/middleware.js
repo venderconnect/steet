@@ -2,7 +2,16 @@ const jwt = require('jsonwebtoken');
 
 // Authentication middleware
 const auth = (req, res, next) => {
-  const token = req.header('x-auth-token');
+  // Accept either Authorization: Bearer <token> or x-auth-token header
+  let token = null;
+  const authHeader = req.header('authorization') || req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.slice(7).trim();
+  }
+  if (!token) {
+    token = req.header('x-auth-token');
+  }
+
   if (!token) {
     return res.status(401).json({ msg: 'No token, authorization denied' });
   }
@@ -11,7 +20,7 @@ const auth = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (e) {
-    res.status(400).json({ msg: 'Token is not valid' });
+    res.status(401).json({ msg: 'Token is not valid' });
   }
 };
 

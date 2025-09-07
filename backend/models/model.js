@@ -13,6 +13,11 @@ const AddressSchema = new mongoose.Schema({
   city: { type: String, required: true },
   state: { type: String, required: true },
   zipCode: { type: String, required: true },
+  // Optional geolocation for mapping
+  coords: {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
 }, {_id: false});
 
 const UserSchema = new mongoose.Schema({

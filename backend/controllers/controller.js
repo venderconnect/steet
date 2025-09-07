@@ -65,12 +65,61 @@ exports.createProduct = async (req, res) => {
 
 
 exports.getProducts = async (req, res) => {
-  try {
-    const products = await Product.find().populate('supplier', 'name businessName');
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+  try {
+    // Support optional query param ?prepared=true to filter prepared products
+    const filter = {};
+    if (req.query.prepared === 'true') {
+      filter.isPrepped = true;
+    }
+    const products = await Product.find(filter).populate('supplier', 'name businessName');
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+
+// New: Get supplier profile and their products
+exports.getSupplierProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supplier = await User.findById(id).select('-password');
+    if (!supplier) return res.status(404).json({ msg: 'Supplier not found' });
+
+    const products = await Product.find({ supplier: id });
+
+    const averageRating = products.length
+      ? products.reduce((acc, p) => acc + (p.averageRating || 0), 0) / products.length
+      : 0;
+
+    res.json({ supplier, products, averageRating });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// Update supplier coords
+exports.updateSupplierCoords = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lat, lng } = req.body;
+    if (!lat || !lng) return res.status(400).json({ msg: 'lat and lng are required' });
+
+    // Only allow supplier to update their own coords
+    if (req.user.id !== id && req.user.role !== 'supplier') {
+      return res.status(403).json({ msg: 'Forbidden' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    user.address = user.address || {};
+    user.address.coords = { lat: Number(lat), lng: Number(lng) };
+    await user.save();
+    res.json({ msg: 'Coords updated', coords: user.address.coords });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 };
 
 

@@ -12,6 +12,7 @@ import Register from './pages/Register';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
 import SupplierDashboard from './pages/SupplierDashboard';
+import SupplierProfile from './pages/SupplierProfile';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               
               <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+              <Route path="/suppliers/:id" element={<SupplierProfile />} />
               <Route path="/orders" element={<ProtectedRoute allowedRoles={['vendor', 'customer']}><Orders /></ProtectedRoute>} />
               <Route path="/supplier" element={<ProtectedRoute allowedRoles={['supplier']}><SupplierDashboard /></ProtectedRoute>} />
               

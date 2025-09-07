@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProducts } from '../services/productService';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +15,13 @@ const categories = ['All', 'Vegetables', 'Grains', 'Oils', 'Spices', 'Dairy', 'P
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showPreparedOnly, setShowPreparedOnly] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: productsData, isLoading, isError } = useQuery({
-    queryKey: ['products'],
-    queryFn: getProducts,
+    queryKey: ['products', { prepared: showPreparedOnly }],
+    queryFn: () => getProducts({ prepared: showPreparedOnly }),
   });
   const products = productsData?.data || [];
 
@@ -69,6 +71,14 @@ const Products = () => {
                 {category}
               </Button>
             ))}
+            <Button
+              key="prepared"
+              variant={showPreparedOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowPreparedOnly(v => !v)}
+            >
+              Prepared Hub
+            </Button>
           </div>
         </div>
 
@@ -83,7 +93,7 @@ const Products = () => {
                     <CardTitle className="text-lg">{product.name}</CardTitle>
                     <Badge variant="secondary">{product.category}</Badge>
                   </div>
-                  <CardDescription>by {product.supplier?.businessName || product.supplier?.name}</CardDescription>
+                  <CardDescription>by {product.supplier ? <Link to={`/suppliers/${product.supplier._id}`} className="text-primary underline">{product.supplier.businessName || product.supplier.name}</Link> : 'Unknown'}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow flex flex-col justify-between space-y-4">
                   <div className="flex items-center justify-between">

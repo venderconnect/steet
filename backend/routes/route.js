@@ -21,4 +21,9 @@ router.get('/group-orders/supplier', auth, authorize('supplier'), controller.get
 router.get('/orders/:orderId/track', auth, controller.getOrderTracking);
 router.put('/orders/:orderId/modify', auth, authorize('vendor', 'customer'), controller.modifyOrder);
 
+// Supplier profile
+router.get('/suppliers/:id', controller.getSupplierProfile);
+// Update supplier coords (supplier only)
+router.put('/suppliers/:id/coords', auth, authorize('supplier'), controller.updateSupplierCoords);
+
 module.exports = router;
