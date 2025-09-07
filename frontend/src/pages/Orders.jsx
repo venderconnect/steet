@@ -10,14 +10,15 @@ import { useAuth } from '../context/AuthContext';
 import { Loader2, Truck, Boxes, Star } from 'lucide-react';
 import ModifyOrderDialog from '@/components/ModifyOrderDialog';
 import OrderTrackingDialog from '@/components/OrderTrackingDialog';
-import ReviewDialog from '@/components/ReviewDialog'; // Import the new dialog
+import ReviewDialog from '@/components/ReviewDialog';
+import { toast } from '../hooks/use-toast';
 
 const Orders = () => {
   const { user } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModifyOpen, setIsModifyOpen] = useState(false);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
-  const [isReviewOpen, setIsReviewOpen] = useState(false); // NEW state for review dialog
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
 
   const { data: ordersData, isLoading, isError } = useQuery({
     queryKey: ['myOrders'],
@@ -25,18 +26,20 @@ const Orders = () => {
   });
   const orders = ordersData?.data || [];
 
-  // Handler functions to open dialogs
   const handleModifyClick = (order) => {
     setSelectedOrder(order);
     setIsModifyOpen(true);
   };
 
   const handleTrackClick = (order) => {
-    setSelectedOrder(order);
-    setIsTrackOpen(true);
+    if (order.status === 'open') {
+      toast({ title: "Waiting for supplier approval" });
+    } else {
+      setSelectedOrder(order);
+      setIsTrackOpen(true);
+    }
   };
   
-  // NEW handler for the review dialog
   const handleReviewClick = (order) => {
     setSelectedOrder(order);
     setIsReviewOpen(true);
@@ -46,12 +49,14 @@ const Orders = () => {
     const progress = (order.currentQty / order.targetQty) * 100;
     const userContribution = order.participants.find(p => p.user._id === user._id);
 
+    const statusText = order.status === 'open' ? 'Waiting for Supplier Approval' : order.status;
+
     return (
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>{order.productId.name}</CardTitle>
-            <Badge variant="outline" className="capitalize">{order.status}</Badge>
+            <Badge variant="outline" className="capitalize">{statusText}</Badge>
           </div>
           <CardDescription>Order ID: {order._id.substring(0, 8)}...</CardDescription>
         </CardHeader>
@@ -72,7 +77,6 @@ const Orders = () => {
             </div>
           )}
           <div className="flex justify-end gap-2">
-            {/* UPDATED: Conditionally render buttons based on order status */}
             {order.status === 'completed' ? (
               <Button size="sm" onClick={() => handleReviewClick(order)}>
                 <Star className="w-4 h-4 mr-2" />Rate Product
@@ -95,8 +99,8 @@ const Orders = () => {
   if (isError) return <div className="text-center py-12 text-destructive">Error fetching your orders.</div>;
 
   const activeOrders = orders.filter(o => o.status === 'open');
-  const processingOrders = orders.filter(o => o.status === 'processing'); // Assuming a future 'processing' status
-  const completedOrders = orders.filter(o => o.status === 'completed');
+  const processingOrders = orders.filter(o => o.status === 'approved' || o.status === 'processing');
+  const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered');
 
   return (
     <div className="container mx-auto py-8">
@@ -124,8 +128,15 @@ const Orders = () => {
           }
         </TabsContent>
         <TabsContent value="processing" className="mt-4">
-          {/* This tab is ready for when you add a 'processing' status */}
-           <div className="text-center p-8 bg-muted/20 rounded-lg"><p>No orders are currently being processed.</p></div>
+           {isLoading ? <div className="flex justify-center p-8"><Loader2 className="animate-spin w-8 h-8" /></div> :
+           processingOrders.length > 0 ? (
+            <div className="grid md:grid-cols-2 gap-6">
+              {processingOrders.map(order => <OrderCard key={order._id} order={order} />)}
+            </div>
+           ) : (
+            <div className="text-center p-8 bg-muted/20 rounded-lg"><p>No orders are currently being processed.</p></div>
+           )
+          }
         </TabsContent>
          <TabsContent value="completed" className="mt-4">
            {isLoading ? <div className="flex justify-center p-8"><Loader2 className="animate-spin w-8 h-8" /></div> :

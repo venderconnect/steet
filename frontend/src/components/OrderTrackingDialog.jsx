@@ -3,7 +3,8 @@ import { getOrderTracking, getOrderSummary } from '../services/orderService';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Loader2, CheckCircle, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
+import RoutingMachine from './RoutingMachine';
 
 const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
   const { data: trackingData, isLoading, isError } = useQuery({
@@ -12,7 +13,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
     enabled: !!orderId && isOpen,
   });
   const trackingInfo = trackingData?.data;
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, isLoading: isLoadingSummary } = useQuery({
     queryKey: ['orderSummary', orderId],
     queryFn: () => getOrderSummary(orderId),
     enabled: !!orderId && isOpen,
@@ -21,6 +22,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
   const orderSummary = summaryData?.data;
   const [mapError, setMapError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [routeSummary, setRouteSummary] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,6 +43,10 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
   const supplierLocation = orderSummary?.supplierLocation;
   const center = supplierLocation || userLocation;
 
+  const handleRouteFound = (summary) => {
+    setRouteSummary(summary);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -49,11 +55,11 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
           <DialogDescription>Status updates for your group order.</DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {isLoading ? <div className="flex justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div> :
+          {isLoading || isLoadingSummary ? <div className="flex justify-center items-center h-64"><p>Loading map and tracking details...</p></div> :
            isError ? <p className="text-destructive text-center">Could not fetch tracking details.</p> :
            trackingInfo ? (
             <div className="space-y-4">
-              <div className="h-64 mb-4">
+              <div className="h-64 mb-4 relative">
                 {mapError ? (
                   <p className="text-destructive">{mapError}</p>
                 ) : center && center.lat && center.lng ? (
@@ -62,21 +68,17 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
-                    {userLocation && userLocation.lat && userLocation.lng && (
-                      <Marker position={[userLocation.lat, userLocation.lng]}>
-                        <Tooltip>Your Location</Tooltip>
-                      </Marker>
-                    )}
-                    {supplierLocation && supplierLocation.lat && supplierLocation.lng && (
-                      <Marker position={[supplierLocation.lat, supplierLocation.lng]}>
-                        <Tooltip>Supplier</Tooltip>
-                      </Marker>
-                    )}
                     {userLocation && userLocation.lat && userLocation.lng && supplierLocation && supplierLocation.lat && supplierLocation.lng && (
-                      <Polyline positions={[[userLocation.lat, userLocation.lng], [supplierLocation.lat, supplierLocation.lng]]} color="blue" />
+                      <RoutingMachine start={[userLocation.lat, userLocation.lng]} end={[supplierLocation.lat, supplierLocation.lng]} onRouteFound={handleRouteFound} />
                     )}
                   </MapContainer>
-                ) : <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>}
+                ) : <div className="flex justify-center items-center h-full"><p>Loading map and tracking details...</p></div>}
+                {routeSummary && (
+                  <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
+                    <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>
+                    <p><b>Estimated Time:</b> {Math.round(routeSummary.totalTime / 60)} minutes</p>
+                  </div>
+                )}
               </div>
               <ul className="space-y-4">
                 {trackingInfo.events.map((event, index) => (

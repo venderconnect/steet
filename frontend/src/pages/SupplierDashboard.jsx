@@ -1,32 +1,44 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyProducts } from '../services/productService';
-import { getSupplierGroupOrders } from '../services/orderService';
+import { getSupplierGroupOrders, approveOrder, rejectOrder } from '../services/orderService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Package, TrendingUp, Clock, Truck } from 'lucide-react';
 import AddProductDialog from '@/components/AddProductDialog';
-import { approveOrder, rejectOrder } from '../services/orderService';
 
 const SupplierDashboard = () => {
-  // Fetch the supplier's own products from the backend
+  const queryClient = useQueryClient();
+
   const { data: productsData, isLoading: isLoadingProducts, isError: isProductsError } = useQuery({
     queryKey: ['myProducts'],
     queryFn: getMyProducts,
   });
   const myProducts = productsData?.data || [];
 
-  // Fetch group orders that have been created for this supplier's products
   const { data: ordersData, isLoading: isLoadingOrders, isError: isOrdersError } = useQuery({
     queryKey: ['supplierGroupOrders'],
     queryFn: getSupplierGroupOrders,
   });
   const groupOrders = ordersData?.data || [];
 
-  // Calculate stats for the dashboard cards
+  const approveMutation = useMutation({
+    mutationFn: approveOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['supplierGroupOrders']);
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: rejectOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['supplierGroupOrders']);
+    },
+  });
+
   const activeOrders = groupOrders.filter(order => order.status === 'open');
-  const processingOrders = groupOrders.filter(order => order.status === 'completed');
+  const processingOrders = groupOrders.filter(order => order.status === 'completed' || order.status === 'approved');
   const totalRevenue = groupOrders
-    .filter(order => order.status === 'completed' || order.status === 'delivered') // Assuming 'completed' means ready for revenue calculation
+    .filter(order => order.status === 'completed' || order.status === 'delivered')
     .reduce((sum, order) => sum + (order.currentQty * (order.productId?.pricePerKg || 0)), 0);
 
   return (
@@ -36,11 +48,9 @@ const SupplierDashboard = () => {
           <h1 className="text-3xl font-bold tracking-tight">Supplier Dashboard</h1>
           <p className="text-muted-foreground">Manage your products and view incoming orders.</p>
         </div>
-        {/* The AddProductDialog component is now integrated here */}
         <AddProductDialog />
       </header>
 
-      {/* Stats Cards Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoadingProducts ? <Loader2 className="h-6 w-6 animate-spin" /> : myProducts.length}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Active Group Orders</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoadingOrders ? <Loader2 className="h-6 w-6 animate-spin" /> : activeOrders.length}</div></CardContent></Card>
@@ -48,7 +58,6 @@ const SupplierDashboard = () => {
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Revenue</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₹{totalRevenue.toLocaleString()}</div></CardContent></Card>
       </div>
 
-      {/* Data Tables Section */}
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <Card>
@@ -61,7 +70,7 @@ const SupplierDashboard = () => {
                isOrdersError ? <p className="text-destructive text-center py-4">Error loading orders.</p> :
                groupOrders.length > 0 ? (
                 <Table>
-                  <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Progress (Qty)</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Progress (Qty)</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {groupOrders.map((order) => (
                       <TableRow key={order._id}>
@@ -71,10 +80,16 @@ const SupplierDashboard = () => {
                         <TableCell>
                           {order.status === 'open' && (
                             <div className="flex gap-2">
-                              <button className="btn btn-sm btn-success" onClick={async () => { await approveOrder(order._id); window.location.reload(); }}>Approve</button>
-                              <button className="btn btn-sm btn-ghost" onClick={async () => { await rejectOrder(order._id); window.location.reload(); }}>Reject</button>
+                              <button className="btn btn-sm btn-success" onClick={() => approveMutation.mutate(order._id)} disabled={approveMutation.isLoading}>
+                                {approveMutation.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
+                              </button>
+                              <button className="btn btn-sm btn-ghost" onClick={() => rejectMutation.mutate(order._id)} disabled={rejectMutation.isLoading}>
+                                {rejectMutation.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
+                              </button>
                             </div>
                           )}
+                          {approveMutation.isError && <p className="text-destructive text-xs">Error approving</p>}
+                          {rejectMutation.isError && <p className="text-destructive text-xs">Error rejecting</p>}
                         </TableCell>
                       </TableRow>
                     ))}
