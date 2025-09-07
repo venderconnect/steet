@@ -3,7 +3,6 @@ import { getOrderTracking, getOrderSummary } from '../services/orderService';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Loader2, CheckCircle, Clock } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import loadGoogleMaps from '../lib/loadGoogleMaps';
 
 const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
   const { data: trackingData, isLoading, isError } = useQuery({
@@ -31,7 +30,8 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
     }
 
     let cancelled = false;
-    loadGoogleMaps(apiKey).then(() => {
+  // dynamic import the loader to avoid static module resolution errors in some environments
+  import('../lib/loadGoogleMaps.js').then(mod => mod.default(apiKey)).then(() => {
       if (cancelled) return;
       const map = new window.google.maps.Map(mapRef.current, { center: { lat: 20.5937, lng: 78.9629 }, zoom: 8 });
 
@@ -67,7 +67,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
       } else {
         setMapError('Geolocation not available');
       }
-    }).catch(err => setMapError(err.message));
+  }).catch(err => setMapError(err.message));
 
     return () => { cancelled = true; };
   }, [isOpen, orderSummary]);
