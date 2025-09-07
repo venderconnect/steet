@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyProducts } from '../services/productService';
 import { getSupplierGroupOrders, approveOrder, rejectOrder } from '../services/orderService';
@@ -118,24 +120,14 @@ const SupplierDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>My Products</CardTitle>
-              <CardDescription>All products you have listed.</CardDescription>
+              <CardDescription>View and manage all products you have listed.</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingProducts ? <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div> :
-               isProductsError ? <p className="text-destructive text-center py-4">Error loading products.</p> :
-               myProducts.length > 0 ? (
-                <Table>
-                  <TableHeader><TableRow><TableHead>Name</TableHead><TableHead className="text-right">Price</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {myProducts.map((product) => (
-                      <TableRow key={product._id}>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell className="text-right">₹{product.pricePerKg}/{product.unit}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : <p className="text-center text-muted-foreground py-4">You haven't added any products.</p>}
+              <div className="flex justify-center items-center h-full">
+                <Link to="/my-products">
+                  <Button>Go to My Products</Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>

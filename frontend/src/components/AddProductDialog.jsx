@@ -70,21 +70,24 @@ const AddProductDialog = () => {
   const handleFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setFormData(prev => ({ ...prev, image: reader.result }));
-    reader.readAsDataURL(file);
+    setFormData(prev => ({ ...prev, image: file })); // Store the File object
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const productData = {
-      ...formData,
-      pricePerKg: parseFloat(formData.pricePerKg),
-      minOrderQty: parseInt(formData.minOrderQty, 10),
-      availableQty: formData.availableQty ? parseInt(formData.availableQty, 10) : 0,
-      image: formData.image || null,
-    };
-    addProduct(productData);
+    const formDataToSend = new FormData();
+    formDataToSend.append('name', formData.name);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('pricePerKg', formData.pricePerKg);
+    formDataToSend.append('category', formData.category);
+    formDataToSend.append('unit', formData.unit);
+    formDataToSend.append('minOrderQty', formData.minOrderQty);
+    formDataToSend.append('isPrepped', formData.isPrepped);
+    formDataToSend.append('availableQty', formData.availableQty);
+    if (formData.image) {
+      formDataToSend.append('image', formData.image);
+    }
+    addProduct(formDataToSend);
   };
 
   return (

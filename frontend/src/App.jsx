@@ -15,6 +15,9 @@ import SupplierDashboard from './pages/SupplierDashboard';
 import SupplierProfile from './pages/SupplierProfile';
 import NotFound from './pages/NotFound';
 import MapSearch from './pages/MapSearch';
+import VendorProfile from './pages/VendorProfile'; // NEW
+import SupplierProfilePage from './pages/SupplierProfilePage'; // NEW
+import MyProductsPage from './pages/MyProductsPage'; // NEW
 
 const queryClient = new QueryClient();
 
@@ -37,6 +40,13 @@ function App() {
               <Route path="/orders" element={<ProtectedRoute allowedRoles={['vendor', 'customer']}><Orders /></ProtectedRoute>} />
               <Route path="/supplier" element={<ProtectedRoute allowedRoles={['supplier']}><SupplierDashboard /></ProtectedRoute>} />
               
+              {/* NEW Profile Routes */}
+              <Route path="/profile" element={<ProtectedRoute><VendorProfile /></ProtectedRoute>} /> {/* Generic profile, will adapt based on role */}
+              <Route path="/supplier-profile-page" element={<ProtectedRoute allowedRoles={['supplier']}><SupplierProfilePage /></ProtectedRoute>} /> {/* Specific supplier profile page */}
+
+              {/* NEW My Products Page */}
+              <Route path="/my-products" element={<ProtectedRoute allowedRoles={['supplier']}><MyProductsPage /></ProtectedRoute>} />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

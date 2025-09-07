@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProducts } from '../services/productService';
 import { Button } from '@/components/ui/button';
@@ -6,11 +6,26 @@ import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, ShoppingCart, IndianRupee, Loader2, Package } from 'lucide-react';
+import { Search, ShoppingCart, IndianRupee, Loader2, Package, MapPin } from 'lucide-react';
 // Note: You will need to create the JoinOrderDialog.jsx component
 import JoinOrderDialog from '@/components/JoinOrderDialog';
 
 const categories = ['All', 'Vegetables', 'Grains', 'Oils', 'Spices', 'Dairy', 'Pulses'];
+
+// Helper function to calculate distance between two lat/lng points (Haversine formula)
+const haversineDistance = (coords1, coords2) => {
+  const toRad = (x) => x * Math.PI / 180;
+  const R = 6371; // Radius of Earth in kilometers
+
+  const dLat = toRad(coords2.lat - coords1.lat);
+  const dLon = toRad(coords2.lng - coords1.lng);
+
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(coords1.lat)) * Math.cos(toRad(coords2.lat)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+};
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,12 +33,47 @@ const Products = () => {
   const [showPreparedOnly, setShowPreparedOnly] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState(null); // NEW: User's current location
+  const [locationEnabled, setLocationEnabled] = useState(false); // NEW: Toggle for location filtering
+
+  useEffect(() => {
+    if (locationEnabled && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          // Optionally, inform the user that location could not be retrieved
+          setUserLocation(null);
+          setLocationEnabled(false); // Disable if error
+        }
+      );
+    } else if (!locationEnabled) {
+      setUserLocation(null);
+    }
+  }, [locationEnabled]);
 
   const { data: productsData, isLoading, isError } = useQuery({
     queryKey: ['products', { prepared: showPreparedOnly }],
     queryFn: () => getProducts({ prepared: showPreparedOnly }),
   });
-  const products = productsData?.data || [];
+  let products = productsData?.data || [];
+
+  // NEW: Sort products by distance if location is enabled and available
+  if (locationEnabled && userLocation) {
+    products = products.map(product => {
+      const supplierCoords = product.supplier?.address?.coords;
+      if (supplierCoords) {
+        const distance = haversineDistance(userLocation, supplierCoords);
+        return { ...product, distance };
+      }
+      return { ...product, distance: Infinity }; // Products without coords go to the end
+    }).sort((a, b) => a.distance - b.distance);
+  }
 
   const filteredProducts = products.filter(product => {
     const supplierName = product.supplier?.name || '';
@@ -79,6 +129,15 @@ const Products = () => {
             >
               Prepared Hub
             </Button>
+            {/* NEW: Location Filter Button */}
+            <Button
+              variant={locationEnabled ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setLocationEnabled(v => !v)}
+            >
+              <MapPin className="w-4 h-4 mr-2" />
+              {locationEnabled ? 'Location Filter ON' : 'Location Filter OFF'}
+            </Button>
           </div>
         </div>
 
@@ -88,12 +147,20 @@ const Products = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product) => (
               <Card key={product._id} className="hover:shadow-lg transition-shadow flex flex-col">
+                {product.imageUrl && (
+                  <img src={product.imageUrl} alt={product.name} className="w-full h-48 object-cover rounded-t-lg" />
+                )}
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-lg">{product.name}</CardTitle>
                     <Badge variant="secondary">{product.category}</Badge>
                   </div>
-                  <CardDescription>by {product.supplier ? <Link to={`/suppliers/${product.supplier._id}`} className="text-primary underline">{product.supplier.businessName || product.supplier.name}</Link> : 'Unknown'}</CardDescription>
+                  <CardDescription>
+                    by {product.supplier ? <Link to={`/suppliers/${product.supplier._id}`} className="text-primary underline">{product.supplier.businessName || product.supplier.name}</Link> : 'Unknown'}
+                    {product.distance !== Infinity && userLocation && (
+                      <span className="ml-2 text-xs text-muted-foreground">({product.distance.toFixed(1)} km)</span>
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow flex flex-col justify-between space-y-4">
                   <div className="flex items-center justify-between">

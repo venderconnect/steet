@@ -6,6 +6,10 @@ const upload = require('../middleware/upload'); // Import the upload middleware
 // Auth
 router.post('/register', controller.register);
 router.post('/login', controller.login);
+router.post('/verify-otp', controller.verifyOtp); // NEW: OTP Verification
+
+// User Profile (for any authenticated user)
+router.get('/profile', auth, controller.getProfile);
 
 // Products
 router.post('/products', auth, authorize('supplier'), upload.single('image'), controller.createProduct);

@@ -32,9 +32,14 @@ const Navbar = () => {
                 Products
               </Link>
               {user?.role === 'supplier' ? (
+                <>
                  <Link to="/supplier" className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/supplier') ? 'text-primary' : 'text-muted-foreground'}`}>
                    Dashboard
                  </Link>
+                 <Link to="/my-products" className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/my-products') ? 'text-primary' : 'text-muted-foreground'}`}>
+                   My Products
+                 </Link>
+                </>
               ) : (
                  <Link to="/orders" className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/orders') ? 'text-primary' : 'text-muted-foreground'}`}>
                    My Orders
@@ -58,6 +63,12 @@ const Navbar = () => {
                     <div className="text-muted-foreground capitalize">{user.role}</div>
                   </div>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile">
+                      <UserIcon className="w-4 h-4 mr-2" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={logout} className="text-destructive">
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout

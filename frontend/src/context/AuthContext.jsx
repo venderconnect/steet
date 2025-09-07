@@ -43,15 +43,27 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const res = await authService.register(userData);
-      const { token, user: newUser } = res.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      setUser(newUser);
-      toast({ title: 'Registration Successful', description: `Welcome, ${newUser.name}!` });
-      return true;
+      // Backend now sends a message, not token directly
+      toast({ title: 'Registration Initiated', description: res.data.msg || 'OTP sent to your email.' });
+      return { success: true, message: res.data.msg };
     } catch (err) {
       toast({ title: 'Registration Failed', description: err.response?.data?.msg || 'An error occurred', variant: 'destructive' });
-      return false;
+      return { success: false, message: err.response?.data?.msg || 'An error occurred' };
+    }
+  };
+
+  const verifyOtp = async (email, otp) => {
+    try {
+      const res = await authService.verifyOtp({ email, otp });
+      const { token, user: userData } = res.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      toast({ title: 'Verification Successful', description: res.data.msg || 'Your email has been verified!' });
+      return { success: true, message: res.data.msg };
+    } catch (err) {
+      toast({ title: 'Verification Failed', description: err.response?.data?.msg || 'Invalid OTP or OTP expired.', variant: 'destructive' });
+      return { success: false, message: err.response?.data?.msg || 'Invalid OTP or OTP expired.' };
     }
   };
 
@@ -62,7 +74,7 @@ export const AuthProvider = ({ children }) => {
     toast({ title: 'Logged Out' });
   };
 
-  const value = { user, isAuthenticated: !!user, login, register, logout };
+  const value = { user, isAuthenticated: !!user, login, register, logout, verifyOtp };
 
   return (
     <AuthContext.Provider value={value}>

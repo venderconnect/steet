@@ -2,48 +2,139 @@ const { User, Product, GroupOrder } = require('../models/model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const sendEmail = require('../utils/sendEmail'); // Import sendEmail
+
+// Helper function to generate OTP
+const generateOtp = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+};
 
 // --- Auth Controller ---
-// (register and login functions remain the same)
 exports.register = async (req, res) => {
-  try {
-    const { name, email, password, role, businessName, address } = req.body;
-    if (!name || !email || !password || !role || !address) {
-        return res.status(400).json({ msg: 'Please enter all required fields.' });
-    }
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: 'User already exists' });
+  try {
+    const { name, email, password, role, businessName, address } = req.body;
+    if (!name || !email || !password || !role || !address || !address.street || !address.city || !address.state || !address.zipCode) {
+      return res.status(400).json({ msg: 'Please enter all required fields, including a complete address.' });
+    }
 
+    let user = await User.findOne({ email });
+    if (user) {
+      if (!user.isVerified) {
+        // If user exists but not verified, resend OTP
+        const otp = generateOtp();
+        const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user = new User({ name, email, password: hashedPassword, role, businessName, address });
-    await user.save();
-    
-    const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.status(201).json({ token, user: { _id: user._id, name: user.name, email: user.email, role: user.role, address: user.address } });
+        user.otp = otp;
+        user.otpExpires = otpExpires;
+        await user.save();
 
+        const message = `Your OTP for StreetFood Connect registration is: ${otp}. It is valid for 10 minutes.`;
+        await sendEmail({
+          email: user.email,
+          subject: 'StreetFood Connect OTP Verification',
+          message,
+        });
+        return res.status(200).json({ msg: 'User already exists but not verified. New OTP sent to your email.' });
+      }
+      return res.status(400).json({ msg: 'User already exists and is verified.' });
+    }
 
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOtp();
+    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      businessName,
+      address,
+      otp,
+      otpExpires,
+      isVerified: false,
+    });
+    await user.save();
+
+    const message = `Your OTP for StreetFood Connect registration is: ${otp}. It is valid for 10 minutes.`;
+    await sendEmail({
+      email: user.email,
+      subject: 'StreetFood Connect OTP Verification',
+      message,
+    });
+
+    res.status(201).json({ msg: 'Registration successful! OTP sent to your email for verification.' });
+
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 };
 
 
 exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
 
+    // NEW: Check if user is verified
+    if (!user.isVerified) {
+      return res.status(400).json({ msg: 'Please verify your email with the OTP sent to you.' });
+    }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
-    
-    const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, user: { _id: user._id, name: user.name, email: user.email, role: user.role, address: user.address } });
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
+
+    const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, user: { _id: user._id, name: user.name, email: user.email, role: user.role, address: user.address } });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// NEW: Verify OTP
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ msg: 'User not found.' });
+    }
+
+    if (user.otp !== otp) {
+      return res.status(400).json({ msg: 'Invalid OTP.' });
+    }
+
+    if (user.otpExpires < Date.now()) {
+      return res.status(400).json({ msg: 'OTP has expired. Please request a new one.' });
+    }
+
+    user.isVerified = true;
+    user.otp = undefined; // Clear OTP
+    user.otpExpires = undefined; // Clear OTP expiration
+    await user.save();
+
+    // Generate token for the newly verified user
+    const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    res.status(200).json({ msg: 'Email verified successfully!', token, user: { _id: user._id, name: user.name, email: user.email, role: user.role, address: user.address } });
+
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// NEW: Get current user profile
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password'); // Exclude password
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 };
 
 
@@ -88,12 +179,14 @@ exports.getProducts = async (req, res) => {
     if (req.query.prepared === 'true') {
       filter.isPrepped = true;
     }
-    const products = await Product.find(filter).populate('supplier', 'name businessName');
+    // Populate supplier with name, businessName, and address (including coords)
+    const products = await Product.find(filter).populate('supplier', 'name businessName address');
     res.json(products);
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
 };
+
 
 
 // New: Get supplier profile and their products
@@ -480,4 +573,3 @@ exports.getOrderTracking = async (req, res) => {
     res.status(500).json({ msg: err.message });
   }
 };
-

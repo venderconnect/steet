@@ -7,7 +7,7 @@ import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
 import RoutingMachine from './RoutingMachine';
 
 const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY; // Get API key
+  // const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY; // Get API key
   const { data: trackingData, isLoading, isError } = useQuery({
     queryKey: ['orderTracking', orderId],
     queryFn: () => getOrderTracking(orderId),
@@ -79,7 +79,9 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
                 {mapError ? (
                   <p className="text-destructive">{mapError}</p>
                 ) : !supplierLocation ? (
-                  <div className="flex justify-center items-center h-full"><p>Supplier location not available for tracking.</p></div>
+                  <div className="flex justify-center items-center h-full"><p>Supplier location not available for tracking. Please contact the supplier.</p></div>
+                ) : !userLocation ? (
+                  <div className="flex justify-center items-center h-full"><p>Your location is not available. Please enable geolocation or set your address in your profile to see the route.</p></div>
                 ) : (center && typeof center.lat === 'number' && typeof center.lng === 'number') ? (
                   <MapContainer center={[center.lat, center.lng]} zoom={8} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
@@ -92,13 +94,13 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
                         start={[userLocation.lat, userLocation.lng]}
                         end={[supplierLocation.lat, supplierLocation.lng]}
                         onRouteFound={handleRouteFound}
-                        apiKey={googleMapsApiKey} // Pass the API key here
+                        // apiKey={googleMapsApiKey} // Pass the API key here
                       />
                     )}
                   </MapContainer>
                 ) : (
-                  <div className="flex justify-center items-center h-full"><p>Map data not fully available.</p></div>
-                )}}
+                  <div className="flex justify-center items-center h-full"><p>Map data not fully available. Ensure both your location and supplier location are set.</p></div>
+                )}
                 {routeSummary && (
                   <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
                     <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>
