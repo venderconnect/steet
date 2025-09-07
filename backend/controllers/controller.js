@@ -13,9 +13,19 @@ const generateOtp = () => {
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, businessName, address } = req.body;
-    if (!name || !email || !password || !role || !address || !address.street || !address.city || !address.state || !address.zipCode) {
-      return res.status(400).json({ msg: 'Please enter all required fields, including a complete address.' });
+    // Basic required checks for top-level fields only
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ msg: 'Please enter all required fields.' });
     }
+
+    // Normalize address into the shape expected by the schema so Mongoose validation won't fail
+    const safeAddress = address && typeof address === 'object' ? {
+      street: address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+      zipCode: address.zipCode || '',
+      coords: address.coords || undefined,
+    } : { street: '', city: '', state: '', zipCode: '' };
 
     let user = await User.findOne({ email });
     if (user) {
