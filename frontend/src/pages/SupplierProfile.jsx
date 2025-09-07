@@ -40,11 +40,8 @@ const SupplierProfile = () => {
     queryFn: () => getSupplierProfile(id),
     enabled: !!id,
   });
-
-  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;
-  if (isError || !data) return <div className="text-center p-8 text-destructive">Unable to load supplier profile.</div>;
-
-  const { supplier, products, averageRating } = data.data;
+  // compute some values that the effect and UI will use; safe when data is undefined
+  const { supplier, products, averageRating } = data?.data || { supplier: null, products: [], averageRating: 0 };
 
   // Vendor location: prefer logged-in user's saved address coords; fall back to supplier's coords as placeholder
   let vendorCoords = null;
@@ -53,14 +50,15 @@ const SupplierProfile = () => {
     vendorCoords = savedUser?.address?.coords ? [savedUser.address.coords.lat, savedUser.address.coords.lng] : null;
   } catch (e) { vendorCoords = null; }
 
-  const supplierCoords = supplier.address?.coords ? [supplier.address.coords.lat, supplier.address.coords.lng] : null;
+  const supplierCoords = supplier?.address?.coords ? [supplier.address.coords.lat, supplier.address.coords.lng] : null;
   const center = supplierCoords || vendorCoords || [20.5937, 78.9629]; // default to India center if nothing
   const distanceKm = (vendorCoords && supplierCoords) ? haversineDistance(vendorCoords, supplierCoords) : null;
 
   const mapRef = useRef(null);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    // Only initialize the map once data is available and mapRef is ready
+    if (!mapRef.current || !supplier) return;
     // Initialize map
     const map = L.map(mapRef.current).setView(center, 10);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -84,7 +82,10 @@ const SupplierProfile = () => {
     return () => {
       map.remove();
     };
-  }, [mapRef, center, vendorCoords, supplierCoords]);
+  }, [mapRef, center, vendorCoords, supplierCoords, supplier]);
+
+  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  if (isError || !data) return <div className="text-center p-8 text-destructive">Unable to load supplier profile.</div>;
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
