@@ -4,10 +4,10 @@ import { getSupplierProfile } from '../services/productService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
-import { useRef, useEffect, useState } from 'react';
-import loadGoogleMaps from '../lib/loadGoogleMaps';
+import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateSupplierCoords } from '../services/productService';
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip } from 'react-leaflet';
 
 // Basic haversine distance in kilometers
 function haversineDistance([lat1, lon1], [lat2, lon2]) {
@@ -21,8 +21,6 @@ function haversineDistance([lat1, lon1], [lat2, lon2]) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 }
-
-// (Switched to Google Maps; removed Leaflet assets)
 
 const SupplierProfile = () => {
   const { id } = useParams();
@@ -45,7 +43,6 @@ const SupplierProfile = () => {
   const center = supplierCoords || vendorCoords || [20.5937, 78.9629]; // default to India center if nothing
   const distanceKm = (vendorCoords && supplierCoords) ? haversineDistance(vendorCoords, supplierCoords) : null;
 
-  const mapRef = useRef(null);
   const queryClient = useQueryClient();
 
   const [geoError, setGeoError] = useState(null);
@@ -75,47 +72,6 @@ const SupplierProfile = () => {
     });
   };
 
-  useEffect(() => {
-    if (!mapRef.current || !supplier) return;
-
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      console.warn('VITE_GOOGLE_MAPS_API_KEY is not set. Google Maps will not load.');
-      return;
-    }
-
-    const createMap = () => {
-      const map = new window.google.maps.Map(mapRef.current, {
-        center: { lat: center[0], lng: center[1] },
-        zoom: 10,
-      });
-
-      const markers = [];
-      if (vendorCoords) {
-        markers.push(new window.google.maps.Marker({ position: { lat: vendorCoords[0], lng: vendorCoords[1] }, map, title: 'Your location' }));
-      }
-      if (supplierCoords) {
-        markers.push(new window.google.maps.Marker({ position: { lat: supplierCoords[0], lng: supplierCoords[1] }, map, title: supplier.businessName || supplier.name }));
-      }
-
-      if (vendorCoords && supplierCoords) {
-        const path = [ { lat: vendorCoords[0], lng: vendorCoords[1] }, { lat: supplierCoords[0], lng: supplierCoords[1] } ];
-        const line = new window.google.maps.Polyline({ path, geodesic: true, strokeColor: '#0000FF', strokeOpacity: 1.0, strokeWeight: 2 });
-        line.setMap(map);
-        const bounds = new window.google.maps.LatLngBounds();
-        path.forEach(p => bounds.extend(p));
-        map.fitBounds(bounds);
-      }
-    };
-
-    let cancelled = false;
-    loadGoogleMaps(apiKey).then(() => { if (!cancelled) createMap(); }).catch(err => {
-      console.warn('Google Maps failed to load:', err.message);
-      setGeoError(err.message);
-    });
-    return () => { cancelled = true; };
-  }, [mapRef, center, vendorCoords, supplierCoords, supplier]);
-
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (isError || !data) return <div className="text-center p-8 text-destructive">Unable to load supplier profile.</div>;
 
@@ -140,7 +96,25 @@ const SupplierProfile = () => {
         <CardContent>
           {/* Map section */}
           <div className="mb-6 h-64">
-            <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
+          <MapContainer center={center} zoom={10} style={{ height: '100%', width: '100%' }}>
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              />
+              {vendorCoords && (
+                <Marker position={vendorCoords}>
+                  <Tooltip>Your location</Tooltip>
+                </Marker>
+              )}
+              {supplierCoords && (
+                <Marker position={supplierCoords}>
+                  <Tooltip>{supplier.businessName || supplier.name}</Tooltip>
+                </Marker>
+              )}
+              {vendorCoords && supplierCoords && (
+                <Polyline positions={[vendorCoords, supplierCoords]} color="blue" />
+              )}
+            </MapContainer>
             {distanceKm !== null && <p className="text-sm mt-2">Distance from you: <strong>{distanceKm.toFixed(2)} km</strong></p>}
             <div className="mt-2 flex items-center gap-2">
               <button type="button" className="btn btn-sm" onClick={handleUseMyLocation} disabled={saving}>
