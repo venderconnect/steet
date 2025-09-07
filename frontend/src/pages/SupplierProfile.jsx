@@ -4,9 +4,9 @@ import { getSupplierProfile } from '../services/productService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
-import { useRef, useEffect } from 'react';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { useRef, useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { updateSupplierCoords } from '../services/productService';
 
 // Basic haversine distance in kilometers
 function haversineDistance([lat1, lon1], [lat2, lon2]) {
@@ -21,17 +21,7 @@ function haversineDistance([lat1, lon1], [lat2, lon2]) {
   return R * c;
 }
 
-// Fix default marker icon issue in many bundlers
-delete L.Icon.Default.prototype._getIconUrl;
-const markerRetina = new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href;
-const markerIcon = new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href;
-const markerShadow = new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href;
-
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerRetina,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+// (Switched to Google Maps; removed Leaflet assets)
 
 const SupplierProfile = () => {
   const { id } = useParams();
@@ -55,33 +45,78 @@ const SupplierProfile = () => {
   const distanceKm = (vendorCoords && supplierCoords) ? haversineDistance(vendorCoords, supplierCoords) : null;
 
   const mapRef = useRef(null);
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation(({ supplierId, coords }) => updateSupplierCoords(supplierId, coords), {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['supplierProfile', id]);
+    }
+  });
+
+  const [geoError, setGeoError] = useState(null);
+
+  const handleUseMyLocation = () => {
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation not available');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      // Call API to update supplier coords
+      mutation.mutate({ supplierId: id, coords });
+    }, (err) => {
+      setGeoError(err.message || 'Failed to get location');
+    });
+  };
 
   useEffect(() => {
-    // Only initialize the map once data is available and mapRef is ready
     if (!mapRef.current || !supplier) return;
-    // Initialize map
-    const map = L.map(mapRef.current).setView(center, 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
 
-    if (vendorCoords) {
-      L.marker(vendorCoords).addTo(map).bindPopup('Your location');
-    }
-    if (supplierCoords) {
-      L.marker(supplierCoords).addTo(map).bindPopup(supplier.businessName || supplier.name);
-    }
-    if (vendorCoords && supplierCoords) {
-      L.polyline([vendorCoords, supplierCoords], { color: 'blue' }).addTo(map);
-      const bounds = L.latLngBounds([vendorCoords, supplierCoords]);
-      map.fitBounds(bounds.pad(0.5));
-    } else {
-      map.setView(center, 6);
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      console.warn('VITE_GOOGLE_MAPS_API_KEY is not set. Google Maps will not load.');
+      return;
     }
 
-    return () => {
-      map.remove();
+    // load google maps script if not present
+    const existing = document.getElementById('google-maps-script');
+    const createMap = () => {
+      const map = new window.google.maps.Map(mapRef.current, {
+        center: { lat: center[0], lng: center[1] },
+        zoom: 10,
+      });
+
+      const markers = [];
+      if (vendorCoords) {
+        markers.push(new window.google.maps.Marker({ position: { lat: vendorCoords[0], lng: vendorCoords[1] }, map, title: 'Your location' }));
+      }
+      if (supplierCoords) {
+        markers.push(new window.google.maps.Marker({ position: { lat: supplierCoords[0], lng: supplierCoords[1] }, map, title: supplier.businessName || supplier.name }));
+      }
+
+      if (vendorCoords && supplierCoords) {
+        const path = [ { lat: vendorCoords[0], lng: vendorCoords[1] }, { lat: supplierCoords[0], lng: supplierCoords[1] } ];
+        const line = new window.google.maps.Polyline({ path, geodesic: true, strokeColor: '#0000FF', strokeOpacity: 1.0, strokeWeight: 2 });
+        line.setMap(map);
+        const bounds = new window.google.maps.LatLngBounds();
+        path.forEach(p => bounds.extend(p));
+        map.fitBounds(bounds);
+      }
     };
+
+    if (!existing) {
+      const script = document.createElement('script');
+      script.id = 'google-maps-script';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+      script.async = true;
+      script.defer = true;
+      script.onload = createMap;
+      document.head.appendChild(script);
+      return () => { document.head.removeChild(script); };
+    } else {
+      createMap();
+    }
   }, [mapRef, center, vendorCoords, supplierCoords, supplier]);
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;
@@ -110,6 +145,13 @@ const SupplierProfile = () => {
           <div className="mb-6 h-64">
             <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
             {distanceKm !== null && <p className="text-sm mt-2">Distance from you: <strong>{distanceKm.toFixed(2)} km</strong></p>}
+            <div className="mt-2 flex items-center gap-2">
+              <button type="button" className="btn btn-sm" onClick={handleUseMyLocation} disabled={mutation.isLoading}>
+                {mutation.isLoading ? 'Saving...' : 'Use my location'}
+              </button>
+              {mutation.isError && <span className="text-destructive">Failed to save coordinates</span>}
+              {geoError && <span className="text-destructive">{geoError}</span>}
+            </div>
           </div>
           {products.length > 0 ? (
             <Table>

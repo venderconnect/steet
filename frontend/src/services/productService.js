@@ -33,3 +33,8 @@ export const getPreparedProducts = () => getProducts({ prepared: true });
 export const getSupplierProfile = (supplierId) => {
   return api.get(`/suppliers/${supplierId}`);
 };
+
+// Update supplier coords (must be supplier or authorized)
+export const updateSupplierCoords = (supplierId, coords) => {
+  return api.put(`/suppliers/${supplierId}/coords`, coords);
+};
