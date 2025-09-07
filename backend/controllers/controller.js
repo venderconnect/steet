@@ -12,6 +12,7 @@ const generateOtp = () => {
 // --- Auth Controller ---
 exports.register = async (req, res) => {
   try {
+    console.log('Received registration request body:', req.body);
     const { name, email, password, role, businessName, address } = req.body;
     // Basic required checks for top-level fields only
     if (!name || !email || !password || !role) {
@@ -35,9 +36,12 @@ exports.register = async (req, res) => {
         const otp = generateOtp();
         const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-        user.otp = otp;
-        user.otpExpires = otpExpires;
-        await user.save();
+                await User.updateOne(
+          { _id: user._id },
+          { $set: { otp: otp, otpExpires: otpExpires } }
+        );
+        // Re-fetch the user to ensure the 'user' object is up-to-date for subsequent use if any
+        user = await User.findById(user._id);
 
         const message = `Your OTP for StreetFood Connect registration is: ${otp}. It is valid for 10 minutes.`;
         try {
@@ -93,6 +97,7 @@ exports.register = async (req, res) => {
 
   } catch (err) {
     console.error('Error during registration:', err);
+    console.error('Registration error details:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
     // Send more detailed error message for validation errors
     res.status(500).json({ msg: err.message, errors: err.errors });
   }
@@ -101,8 +106,10 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
+    console.log('Login request body:', req.body);
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
+    console.log('User found:', user ? user.email : 'None');
     if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
 
     // NEW: Check if user is verified
@@ -110,7 +117,9 @@ exports.login = async (req, res) => {
       return res.status(400).json({ msg: 'Please verify your email with the OTP sent to you.' });
     }
 
+    console.log('Stored hashed password:', user.password);
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password comparison result (isMatch):', isMatch);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
 
     const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -124,7 +133,7 @@ exports.login = async (req, res) => {
 exports.verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
 
     if (!user) {
       return res.status(400).json({ msg: 'User not found.' });
@@ -138,10 +147,12 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ msg: 'OTP has expired. Please request a new one.' });
     }
 
-    user.isVerified = true;
-    user.otp = undefined; // Clear OTP
-    user.otpExpires = undefined; // Clear OTP expiration
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { isVerified: true, otp: undefined, otpExpires: undefined } }
+    );
+    // Re-fetch the user to ensure the 'user' object is up-to-date for subsequent use if any
+    user = await User.findById(user._id);
 
     // Generate token for the newly verified user
     const token = jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
