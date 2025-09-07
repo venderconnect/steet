@@ -38,6 +38,7 @@ const ProductSchema = new mongoose.Schema({
   category: { type: String, required: true },
   unit: { type: String, default: 'kg' },
   minOrderQty: { type: Number, required: true },
+  availableQty: { type: Number, default: 0 },
   isPrepped: { type: Boolean, default: false },
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   reviews: [ReviewSchema], // NEW

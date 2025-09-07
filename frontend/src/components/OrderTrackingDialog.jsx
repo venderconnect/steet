@@ -32,7 +32,18 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
           setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
         () => {
-          setMapError('Unable to determine your location');
+          // fallback to saved user address coords if available
+          try {
+            const saved = JSON.parse(localStorage.getItem('user'));
+            const coords = saved?.address?.coords;
+            if (coords && coords.lat && coords.lng) {
+              setUserLocation({ lat: coords.lat, lng: coords.lng });
+            } else {
+              setMapError('Unable to determine your location');
+            }
+          } catch (e) {
+            setMapError('Unable to determine your location');
+          }
         }
       );
     } else {
@@ -42,6 +53,8 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
 
   const supplierLocation = orderSummary?.supplierLocation;
   const center = supplierLocation || userLocation;
+  // Map is considered ready when we have orderSummary and at least one of userLocation or supplierLocation
+  const isMapDataAvailable = !!orderSummary && (!!userLocation || !!supplierLocation);
 
   const handleRouteFound = (summary) => {
     setRouteSummary(summary);
@@ -55,14 +68,18 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
           <DialogDescription>Status updates for your group order.</DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          {isLoading || isLoadingSummary ? <div className="flex justify-center items-center h-64"><p>Loading map and tracking details...</p></div> :
-           isError ? <p className="text-destructive text-center">Could not fetch tracking details.</p> :
-           trackingInfo ? (
+          {isLoading || isLoadingSummary || !isMapDataAvailable ? (
+            <div className="flex justify-center items-center h-64"><p>Loading map and tracking details...</p></div>
+          ) : isError ? (
+            <p className="text-destructive text-center">Could not fetch tracking details.</p>
+          ) : trackingInfo ? (
             <div className="space-y-4">
               <div className="h-64 mb-4 relative">
                 {mapError ? (
                   <p className="text-destructive">{mapError}</p>
-                ) : center && center.lat && center.lng ? (
+                ) : !supplierLocation ? (
+                  <div className="flex justify-center items-center h-full"><p>Supplier location not available for tracking.</p></div>
+                ) : (
                   <MapContainer center={[center.lat, center.lng]} zoom={8} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -72,7 +89,7 @@ const OrderTrackingDialog = ({ orderId, isOpen, onClose }) => {
                       <RoutingMachine start={[userLocation.lat, userLocation.lng]} end={[supplierLocation.lat, supplierLocation.lng]} onRouteFound={handleRouteFound} />
                     )}
                   </MapContainer>
-                ) : <div className="flex justify-center items-center h-full"><p>Loading map and tracking details...</p></div>}
+                )}
                 {routeSummary && (
                   <div className="absolute bottom-2 left-2 bg-white p-2 rounded shadow-lg text-xs">
                     <p><b>Distance:</b> {(routeSummary.totalDistance / 1000).toFixed(2)} km</p>

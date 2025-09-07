@@ -33,6 +33,8 @@ const AddProductDialog = () => {
     unit: 'kg',
     minOrderQty: '',
     isPrepped: false,
+    availableQty: '',
+    image: null,
   });
 
   const { mutate: addProduct, isPending } = useMutation({
@@ -45,7 +47,7 @@ const AddProductDialog = () => {
       queryClient.invalidateQueries({ queryKey: ['myProducts'] });
       setIsOpen(false);
       // Reset form for next time
-      setFormData({ name: '', description: '', pricePerKg: '', category: '', unit: 'kg', minOrderQty: '', isPrepped: false });
+      setFormData({ name: '', description: '', pricePerKg: '', category: '', unit: 'kg', minOrderQty: '', isPrepped: false, availableQty: '', image: null });
     },
     onError: (err) => {
       toast({
@@ -64,6 +66,14 @@ const AddProductDialog = () => {
   const handleSwitchChange = (checked) => {
       setFormData(prev => ({ ...prev, isPrepped: checked }));
   };
++
++  const handleFile = (e) => {
++    const file = e.target.files && e.target.files[0];
++    if (!file) return;
++    const reader = new FileReader();
++    reader.onload = () => setFormData(prev => ({ ...prev, image: reader.result }));
++    reader.readAsDataURL(file);
++  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -71,6 +81,8 @@ const AddProductDialog = () => {
       ...formData,
       pricePerKg: parseFloat(formData.pricePerKg),
       minOrderQty: parseInt(formData.minOrderQty, 10),
+      availableQty: formData.availableQty ? parseInt(formData.availableQty, 10) : 0,
+      image: formData.image || null,
     };
     addProduct(productData);
   };
@@ -124,6 +136,16 @@ const AddProductDialog = () => {
               <Input id="minOrderQty" name="minOrderQty" type="number" value={formData.minOrderQty} onChange={handleChange} required />
             </div>
           </div>
++          <div className="grid grid-cols-2 gap-4">
++            <div className="space-y-2">
++              <Label htmlFor="availableQty">Available Quantity</Label>
++              <Input id="availableQty" name="availableQty" type="number" value={formData.availableQty} onChange={handleChange} />
++            </div>
++            <div className="space-y-2">
++              <Label htmlFor="image">Image</Label>
++              <Input id="image" name="image" type="file" accept="image/*" onChange={handleFile} />
++            </div>
++          </div>
            <div className="flex items-center space-x-2">
             <Switch id="isPrepped" checked={formData.isPrepped} onCheckedChange={handleSwitchChange} />
             <Label htmlFor="isPrepped">Is this a pre-prepared item? (e.g., batter)</Label>

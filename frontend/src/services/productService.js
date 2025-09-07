@@ -11,7 +11,13 @@ export const getProducts = (opts = {}) => {
 
 
 export const createProduct = (data) => {
-  return api.post('/products', data);
+  // Ensure optional fields are set
+  const productData = {
+    ...data,
+    availableQty: data.availableQty || 0,
+    image: data.image || null, // base64 string expected if provided
+  };
+  return api.post('/products', productData);
 };
 
 /**

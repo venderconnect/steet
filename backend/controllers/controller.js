@@ -51,11 +51,11 @@ exports.login = async (req, res) => {
 // (createProduct, getProducts, getMyProducts remain the same)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, pricePerKg, image, category, unit, minOrderQty, isPrepped } = req.body;
-    const product = new Product({
-      name, description, pricePerKg, image, category, unit, minOrderQty, isPrepped,
-      supplier: req.user.id
-    });
+    const { name, description, pricePerKg, image, category, unit, minOrderQty, isPrepped, availableQty } = req.body;
+    const product = new Product({
+      name, description, pricePerKg, image, category, unit, minOrderQty, isPrepped, availableQty,
+      supplier: req.user.id
+    });
     await product.save();
     res.status(201).json(product);
   } catch (err) {
