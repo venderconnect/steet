@@ -51,23 +51,26 @@ exports.login = async (req, res) => {
 // (createProduct, getProducts, getMyProducts remain the same)
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, category, unit, quantity, isPrepped } = req.body;
-    const imageUrl = req.file ? req.file.path : null; // Get image URL from Cloudinary
+    // Accept both multipart file upload (req.file) and JSON body with base64 image (req.body.image)
+    const { name, description, pricePerKg, category, unit, minOrderQty, isPrepped, availableQty } = req.body;
+    // prefer req.file (Cloudinary) if present, otherwise accept base64 image string from body
+    const imageUrl = req.file ? req.file.path : (req.body.image || null);
 
-    // Validate required fields
-    if (!name || !description || !price || !category || !unit || !quantity) {
+    // Validate required fields (description optional)
+    if (!name || !pricePerKg || !category || !unit || !minOrderQty) {
       return res.status(400).json({ msg: 'Please enter all required fields.' });
     }
 
     const product = new Product({
       name,
-      description,
-      pricePerKg: price, // Assuming price is per kg, adjust if needed
-      imageUrl, // Store the Cloudinary image URL
+      description: description || '',
+      pricePerKg: Number(pricePerKg),
+      imageUrl,
       category,
       unit,
-      availableQty: quantity, // Store the available quantity
-      isPrepped,
+      minOrderQty: Number(minOrderQty),
+      availableQty: availableQty ? Number(availableQty) : 0,
+      isPrepped: isPrepped === 'true' || isPrepped === true,
       supplier: req.user.id
     });
     await product.save();
