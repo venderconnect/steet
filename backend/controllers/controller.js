@@ -13,13 +13,18 @@ const generateOtp = () => {
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role, businessName, address } = req.body;
+    console.log('Register attempt for email:', email);
+    console.log('Received address:', address);
+
     if (!name || !email || !password || !role || !address || !address.street || !address.city || !address.state || !address.zipCode) {
+      console.log('Validation failed: Missing required fields or incomplete address.');
       return res.status(400).json({ msg: 'Please enter all required fields, including a complete address.' });
     }
 
     let user = await User.findOne({ email });
     if (user) {
       if (!user.isVerified) {
+        console.log('User exists but not verified. Resending OTP.');
         // If user exists but not verified, resend OTP
         const otp = generateOtp();
         const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
@@ -29,13 +34,20 @@ exports.register = async (req, res) => {
         await user.save();
 
         const message = `Your OTP for StreetFood Connect registration is: ${otp}. It is valid for 10 minutes.`;
-        await sendEmail({
-          email: user.email,
-          subject: 'StreetFood Connect OTP Verification',
-          message,
-        });
+        try {
+          await sendEmail({
+            email: user.email,
+            subject: 'StreetFood Connect OTP Verification',
+            message,
+          });
+          console.log('OTP resent successfully to:', user.email);
+        } catch (emailErr) {
+          console.error('Error sending OTP email (resend):', emailErr);
+          return res.status(500).json({ msg: 'Failed to resend OTP email.' });
+        }
         return res.status(200).json({ msg: 'User already exists but not verified. New OTP sent to your email.' });
       }
+      console.log('User already exists and is verified.');
       return res.status(400).json({ msg: 'User already exists and is verified.' });
     }
 
@@ -54,18 +66,27 @@ exports.register = async (req, res) => {
       otpExpires,
       isVerified: false,
     });
+    console.log('Attempting to save new user:', user.email);
     await user.save();
+    console.log('User saved successfully.');
 
     const message = `Your OTP for StreetFood Connect registration is: ${otp}. It is valid for 10 minutes.`;
-    await sendEmail({
-      email: user.email,
-      subject: 'StreetFood Connect OTP Verification',
-      message,
-    });
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'StreetFood Connect OTP Verification',
+        message,
+      });
+      console.log('OTP sent successfully to:', user.email);
+    } catch (emailErr) {
+      console.error('Error sending OTP email (new user):', emailErr);
+      return res.status(500).json({ msg: 'Failed to send OTP email.' });
+    }
 
     res.status(201).json({ msg: 'Registration successful! OTP sent to your email for verification.' });
 
   } catch (err) {
+    console.error('Error during registration:', err);
     res.status(500).json({ msg: err.message });
   }
 };
