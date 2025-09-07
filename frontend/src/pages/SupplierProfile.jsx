@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 import { useRef, useEffect, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { updateSupplierCoords } from '../services/productService';
 
 // Basic haversine distance in kilometers
@@ -47,24 +47,28 @@ const SupplierProfile = () => {
   const mapRef = useRef(null);
   const queryClient = useQueryClient();
 
-  const mutation = useMutation(({ supplierId, coords }) => updateSupplierCoords(supplierId, coords), {
-    onSuccess: () => {
-      queryClient.invalidateQueries(['supplierProfile', id]);
-    }
-  });
-
   const [geoError, setGeoError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   const handleUseMyLocation = () => {
     setGeoError(null);
+    setSaveError(null);
     if (!navigator.geolocation) {
       setGeoError('Geolocation not available');
       return;
     }
-    navigator.geolocation.getCurrentPosition((pos) => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
       const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      // Call API to update supplier coords
-      mutation.mutate({ supplierId: id, coords });
+      try {
+        setSaving(true);
+        await updateSupplierCoords(id, coords);
+        await queryClient.invalidateQueries(['supplierProfile', id]);
+      } catch (err) {
+        setSaveError(err.response?.data?.msg || err.message || 'Failed to save coordinates');
+      } finally {
+        setSaving(false);
+      }
     }, (err) => {
       setGeoError(err.message || 'Failed to get location');
     });
@@ -146,10 +150,10 @@ const SupplierProfile = () => {
             <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
             {distanceKm !== null && <p className="text-sm mt-2">Distance from you: <strong>{distanceKm.toFixed(2)} km</strong></p>}
             <div className="mt-2 flex items-center gap-2">
-              <button type="button" className="btn btn-sm" onClick={handleUseMyLocation} disabled={mutation.isLoading}>
-                {mutation.isLoading ? 'Saving...' : 'Use my location'}
+              <button type="button" className="btn btn-sm" onClick={handleUseMyLocation} disabled={saving}>
+                {saving ? 'Saving...' : 'Use my location'}
               </button>
-              {mutation.isError && <span className="text-destructive">Failed to save coordinates</span>}
+              {saveError && <span className="text-destructive">{saveError}</span>}
               {geoError && <span className="text-destructive">{geoError}</span>}
             </div>
           </div>
