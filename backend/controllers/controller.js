@@ -328,6 +328,70 @@ exports.getSupplierGroupOrders = async (req, res) => {
     }
 };
 
+// Supplier approves an order: set supplierLocation (from supplier's address.coords) and mark approved
+exports.approveGroupOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await GroupOrder.findById(orderId).populate('productId');
+    if (!order) return res.status(404).json({ msg: 'Order not found' });
+
+    // verify supplier owns the product
+    const product = await Product.findById(order.productId._id).select('supplier');
+    if (!product) return res.status(404).json({ msg: 'Product not found' });
+    if (product.supplier.toString() !== req.user.id) return res.status(403).json({ msg: 'Forbidden' });
+
+    const supplier = await User.findById(req.user.id).select('address');
+    const coords = supplier?.address?.coords;
+    if (!coords) return res.status(400).json({ msg: 'Supplier location not set. Please set your location first.' });
+
+    order.supplierLocation = { lat: coords.lat, lng: coords.lng };
+    order.supplierApproved = true;
+    order.status = 'approved';
+    await order.save();
+    res.json({ msg: 'Order approved', order });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// Supplier rejects an order
+exports.rejectGroupOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await GroupOrder.findById(orderId).populate('productId');
+    if (!order) return res.status(404).json({ msg: 'Order not found' });
+
+    const product = await Product.findById(order.productId._id).select('supplier');
+    if (!product) return res.status(404).json({ msg: 'Product not found' });
+    if (product.supplier.toString() !== req.user.id) return res.status(403).json({ msg: 'Forbidden' });
+
+    order.status = 'rejected';
+    order.supplierApproved = false;
+    await order.save();
+    res.json({ msg: 'Order rejected', order });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+// Provide order summary used by vendor tracking UI (includes supplier coords if approved)
+exports.getOrderSummary = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await GroupOrder.findById(orderId).populate({ path: 'productId', populate: { path: 'supplier', select: 'name businessName address' } });
+    if (!order) return res.status(404).json({ msg: 'Order not found' });
+
+    res.json({
+      orderId: order._id,
+      status: order.status,
+      supplierLocation: order.supplierLocation || order.productId.supplier.address?.coords || null,
+      product: { id: order.productId._id, name: order.productId.name }
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
 
 exports.modifyOrder = async (req, res) => {
   const { orderId } = req.params;

@@ -21,6 +21,13 @@ router.get('/group-orders/supplier', auth, authorize('supplier'), controller.get
 router.get('/orders/:orderId/track', auth, controller.getOrderTracking);
 router.put('/orders/:orderId/modify', auth, authorize('vendor', 'customer'), controller.modifyOrder);
 
+// Supplier actions on orders
+router.put('/orders/:orderId/approve', auth, authorize('supplier'), controller.approveGroupOrder);
+router.put('/orders/:orderId/reject', auth, authorize('supplier'), controller.rejectGroupOrder);
+
+// Order summary for vendor tracking UI
+router.get('/orders/:orderId/summary', auth, controller.getOrderSummary);
+
 // Supplier profile
 router.get('/suppliers/:id', controller.getSupplierProfile);
 // Update supplier coords (supplier only)

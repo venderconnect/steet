@@ -51,3 +51,15 @@ export const modifyOrder = (orderId, newQuantity) => {
 export const getOrderTracking = (orderId) => {
   return api.get(`/orders/${orderId}/track`);
 };
+
+export const approveOrder = (orderId) => {
+  return api.put(`/orders/${orderId}/approve`);
+};
+
+export const rejectOrder = (orderId) => {
+  return api.put(`/orders/${orderId}/reject`);
+};
+
+export const getOrderSummary = (orderId) => {
+  return api.get(`/orders/${orderId}/summary`);
+};

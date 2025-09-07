@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Package, TrendingUp, Clock, Truck } from 'lucide-react';
 import AddProductDialog from '@/components/AddProductDialog';
+import { approveOrder, rejectOrder } from '../services/orderService';
 
 const SupplierDashboard = () => {
   // Fetch the supplier's own products from the backend
@@ -67,6 +68,14 @@ const SupplierDashboard = () => {
                         <TableCell className="font-medium">{order.productId?.name || 'N/A'}</TableCell>
                         <TableCell>{order.currentQty} / {order.targetQty} {order.productId?.unit}</TableCell>
                         <TableCell className="capitalize">{order.status}</TableCell>
+                        <TableCell>
+                          {order.status === 'open' && (
+                            <div className="flex gap-2">
+                              <button className="btn btn-sm btn-success" onClick={async () => { await approveOrder(order._id); window.location.reload(); }}>Approve</button>
+                              <button className="btn btn-sm btn-ghost" onClick={async () => { await rejectOrder(order._id); window.location.reload(); }}>Reject</button>
+                            </div>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

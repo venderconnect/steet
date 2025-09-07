@@ -48,8 +48,15 @@ const GroupOrderSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   targetQty: { type: Number, required: true },
   currentQty: { type: Number, default: 0 },
-  status: { type: String, enum: ['open', 'completed', 'cancelled'], default: 'open' },
+  // Expanded statuses to support supplier approval flow and delivery tracking
+  status: { type: String, enum: ['open', 'approved', 'processing', 'completed', 'delivered', 'cancelled', 'rejected'], default: 'open' },
   deliveryDate: { type: Date },
+  // Captured when supplier approves the order so vendor can route to supplier
+  supplierLocation: {
+    lat: { type: Number },
+    lng: { type: Number }
+  },
+  supplierApproved: { type: Boolean, default: false },
   participants: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     quantity: { type: Number, required: true },
