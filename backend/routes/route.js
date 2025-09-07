@@ -1,5 +1,4 @@
-const express = require('express');
-const router = express.Router();
+const router = require('express').Router();
 const controller = require('../controllers/controller');
 const { auth, authorize } = require('../middleware/middleware');
 const upload = require('../middleware/upload'); // Import the upload middleware
