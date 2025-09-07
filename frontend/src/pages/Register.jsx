@@ -39,7 +39,18 @@ const Register = () => {
       return;
     }
     setIsLoading(true);
-    const { confirmPassword, ...userData } = formData;
+    // Build userData to ensure `address` matches backend schema
+    const { confirmPassword, ...rest } = formData;
+    const userData = {
+      ...rest,
+      address: {
+        street: formData.address.street || '',
+        city: formData.address.city || '',
+        state: formData.address.state || '',
+        zipCode: formData.address.zipCode || '',
+      }
+    };
+
     const response = await authRegister(userData); // Use authRegister
 
     if (response && response.success) {
@@ -69,8 +80,18 @@ const Register = () => {
 
   const handleResendOtp = async () => {
     setIsLoading(true);
-    const { confirmPassword, ...userData } = formData; // Re-use initial form data
-    userData.email = registrationEmail; // Ensure correct email is used for resend
+    // Rebuild userData for resend to include address in expected shape
+    const { confirmPassword, ...rest } = formData;
+    const userData = {
+      ...rest,
+      email: registrationEmail,
+      address: {
+        street: formData.address.street || '',
+        city: formData.address.city || '',
+        state: formData.address.state || '',
+        zipCode: formData.address.zipCode || '',
+      }
+    };
     const response = await authRegister(userData); // Call register again to resend OTP
 
     if (response && response.success) {
