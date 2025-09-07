@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2 } from 'lucide-react';
 import { useRef, useEffect, useState } from 'react';
+import loadGoogleMaps from '../lib/loadGoogleMaps';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateSupplierCoords } from '../services/productService';
 
@@ -83,8 +84,6 @@ const SupplierProfile = () => {
       return;
     }
 
-    // load google maps script if not present
-    const existing = document.getElementById('google-maps-script');
     const createMap = () => {
       const map = new window.google.maps.Map(mapRef.current, {
         center: { lat: center[0], lng: center[1] },
@@ -109,18 +108,12 @@ const SupplierProfile = () => {
       }
     };
 
-    if (!existing) {
-      const script = document.createElement('script');
-      script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
-      script.async = true;
-      script.defer = true;
-      script.onload = createMap;
-      document.head.appendChild(script);
-      return () => { document.head.removeChild(script); };
-    } else {
-      createMap();
-    }
+    let cancelled = false;
+    loadGoogleMaps(apiKey).then(() => { if (!cancelled) createMap(); }).catch(err => {
+      console.warn('Google Maps failed to load:', err.message);
+      setGeoError(err.message);
+    });
+    return () => { cancelled = true; };
   }, [mapRef, center, vendorCoords, supplierCoords, supplier]);
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>;

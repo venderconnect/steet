@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { getNearbySuppliers } from '../services/productService';
 import { useQueryClient } from '@tanstack/react-query';
+import loadGoogleMaps from '../lib/loadGoogleMaps';
 
 // This component renders a Google Map, fetches nearby suppliers from our API,
 // shows markers, a side panel with supplier details, and draws routes using the
@@ -19,20 +20,17 @@ const MapSearch = () => {
   useEffect(() => {
     if (!mapRef.current) return;
     if (!apiKey) return;
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
-      script.async = true;
-      script.onload = initMap;
-      document.head.appendChild(script);
-    } else {
-      initMap();
-    }
 
-    function initMap() {
+    let cancelled = false;
+    loadGoogleMaps(apiKey).then(() => {
+      if (cancelled) return;
       const m = new window.google.maps.Map(mapRef.current, { center: { lat: 20.5937, lng: 78.9629 }, zoom: 6 });
       setMap(m);
-    }
+    }).catch(err => {
+      console.warn('Google Maps failed to load:', err.message);
+    });
+
+    return () => { cancelled = true; };
   }, [mapRef]);
 
   useEffect(() => {
