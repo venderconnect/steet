@@ -26,7 +26,7 @@ api.interceptors.response.use(
       try {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-      } catch (e) {}
+      } catch (e) { /* Log or handle the error if needed */ }
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
