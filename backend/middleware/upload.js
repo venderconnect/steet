@@ -14,7 +14,11 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'street-food-products',
-    format: async (req, file) => 'png', // supports promises as well
+    format: async (req, file) => {
+      console.log('Multer processing file:', file.originalname);
+      console.log('Multer processing request body:', req.body);
+      return 'png';
+    }, // supports promises as well
     public_id: (req, file) => `${Date.now()}-${file.originalname}`,
   },
 });
