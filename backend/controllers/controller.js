@@ -338,6 +338,19 @@ exports.getMyProducts = async (req, res) => {
   }
 };
 
+exports.getProductById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).populate('supplier', 'name businessName address');
+    if (!product) {
+      return res.status(404).json({ msg: 'Product not found' });
+    }
+    res.json(product);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+};
+
 
 // NEW: Controller function for creating a product review
 exports.createProductReview = async (req, res) => {
@@ -521,6 +534,48 @@ exports.rejectGroupOrder = async (req, res) => {
     await order.save();
     res.json({ msg: 'Order rejected', order });
   } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+exports.markOrderAsDelivered = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await GroupOrder.findById(orderId).populate('productId');
+    if (!order) {
+      return res.status(404).json({ msg: 'Order not found' });
+    }
+
+    // Verify supplier owns the product associated with the order
+    if (order.productId.supplier.toString() !== req.user.id) {
+      return res.status(403).json({ msg: 'Forbidden: You do not own this product.' });
+    }
+
+    // Only mark as delivered if the status is 'approved'
+    if (order.status !== 'approved') {
+      return res.status(400).json({ msg: 'Order must be in "approved" status to be marked as delivered.' });
+    }
+
+    // Update order status to 'completed'
+    order.status = 'completed';
+    await order.save();
+
+    // Calculate order total and update supplier revenue
+    const orderTotal = order.currentQty * (order.productId?.pricePerKg || 0);
+
+    const supplier = await User.findById(req.user.id);
+    if (!supplier) {
+      return res.status(404).json({ msg: 'Supplier not found' });
+    }
+
+    supplier.revenue = (supplier.revenue || 0) + orderTotal;
+    await supplier.save();
+
+    res.json({ msg: 'Order marked as delivered and revenue updated.', order });
+
+  } catch (err) {
+    console.error('Error marking order as delivered:', err);
     res.status(500).json({ msg: err.message });
   }
 };

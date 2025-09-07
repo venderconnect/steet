@@ -18,6 +18,7 @@ import MapSearch from './pages/MapSearch';
 import VendorProfile from './pages/VendorProfile'; // NEW
 import SupplierProfilePage from './pages/SupplierProfilePage'; // NEW
 import MyProductsPage from './pages/MyProductsPage'; // NEW
+import ProductDetail from './pages/ProductDetail'; // NEW
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               
               <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+              <Route path="/products/:id" element={<ProductDetail />} /> {/* NEW Product Detail Route */}
               <Route path="/map-search" element={<MapSearch />} />
               <Route path="/suppliers/:id" element={<SupplierProfile />} />
               <Route path="/orders" element={<ProtectedRoute allowedRoles={['vendor', 'customer']}><Orders /></ProtectedRoute>} />

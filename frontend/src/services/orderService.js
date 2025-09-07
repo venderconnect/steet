@@ -60,6 +60,10 @@ export const rejectOrder = (orderId) => {
   return api.put(`/orders/${orderId}/reject`);
 };
 
+export const markOrderAsDelivered = (orderId) => {
+  return api.put(`/orders/${orderId}/deliver`);
+};
+
 export const getOrderSummary = (orderId) => {
   return api.get(`/orders/${orderId}/summary`);
 };

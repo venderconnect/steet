@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProducts } from '../services/productService';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, ShoppingCart, IndianRupee, Loader2, Package, MapPin } from 'lucide-react';
-// Note: You will need to create the JoinOrderDialog.jsx component
 import JoinOrderDialog from '@/components/JoinOrderDialog';
 
 const categories = ['All', 'Vegetables', 'Grains', 'Oils', 'Spices', 'Dairy', 'Pulses'];
@@ -35,6 +34,8 @@ const Products = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null); // NEW: User's current location
   const [locationEnabled, setLocationEnabled] = useState(false); // NEW: Toggle for location filtering
+
+  const navigate = useNavigate(); // Initialize useNavigate
 
   useEffect(() => {
     if (locationEnabled && navigator.geolocation) {
@@ -146,36 +147,50 @@ const Products = () => {
         ) : filteredProducts.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map((product) => (
-              <Card key={product._id} className="hover:shadow-lg transition-shadow flex flex-col">
-                {product.imageUrl && (
-                  <img src={product.imageUrl} alt={product.name} className="w-full h-48 object-cover rounded-t-lg" />
-                )}
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                    <Badge variant="secondary">{product.category}</Badge>
-                  </div>
-                  <CardDescription>
-                    by {product.supplier ? <Link to={`/suppliers/${product.supplier._id}`} className="text-primary underline">{product.supplier.businessName || product.supplier.name}</Link> : 'Unknown'}
-                    {product.distance !== Infinity && userLocation && (
-                      <span className="ml-2 text-xs text-muted-foreground">({product.distance.toFixed(1)} km)</span>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-baseline space-x-1">
-                      <IndianRupee className="w-4 h-4 text-primary" />
-                      <span className="text-2xl font-bold text-primary">{product.pricePerKg}</span>
-                      <span className="text-muted-foreground">/{product.unit}</span>
+              <Card className="hover:shadow-lg transition-shadow flex flex-col h-full" key={product._id}>
+                <Link to={`/products/${product._id}`} className="block">
+                  {product.imageUrl && (
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-48 object-cover rounded-t-lg" />
+                  )}
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg">{product.name}</CardTitle>
+                      <Badge variant="secondary">{product.category}</Badge>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">Min. Order</div>
-                      <div className="font-semibold">{product.minOrderQty} {product.unit}</div>
+                    <CardDescription>
+                      by {product.supplier ? (
+                        <span
+                          className="text-primary underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent click from propagating to the outer Link
+                            navigate(`/suppliers/${product.supplier._id}`);
+                          }}
+                        >
+                          {product.supplier.businessName || product.supplier.name}
+                        </span>
+                      ) : 'Unknown'}
+                      {product.distance !== Infinity && userLocation && (
+                        <span className="ml-2 text-xs text-muted-foreground">({product.distance.toFixed(1)} km)</span>
+                      )}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow flex flex-col justify-between space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline space-x-1">
+                        <IndianRupee className="w-4 h-4 text-primary" />
+                        <span className="text-2xl font-bold text-primary">{product.pricePerKg}</span>
+                        <span className="text-muted-foreground">/{product.unit}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground">Min. Order</div>
+                        <div className="font-semibold">{product.minOrderQty} {product.unit}</div>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground flex-grow">{product.description}</p>
-                  <Button className="w-full" onClick={() => handleJoinOrder(product)}>
+                    <p className="text-sm text-muted-foreground flex-grow">{product.description}</p>
+                  </CardContent>
+                </Link>
+                <CardContent className="pt-0">
+                  <Button className="w-full" onClick={() => { handleJoinOrder(product); }}>
                     <ShoppingCart className="w-4 h-4 mr-2" />
                     Join/Create Group Order
                   </Button>

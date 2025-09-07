@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyProducts } from '../services/productService';
-import { getSupplierGroupOrders, approveOrder, rejectOrder } from '../services/orderService';
+import { getSupplierGroupOrders, approveOrder, rejectOrder, markOrderAsDelivered } from '../services/orderService';
+import { getProfile } from '../services/authService'; // NEW: Import getProfile
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Package, TrendingUp, Clock, Truck } from 'lucide-react';
@@ -27,6 +28,12 @@ const SupplierDashboard = () => {
   });
   const groupOrders = ordersData?.data || [];
 
+  const { data: userProfileData, isLoading: isLoadingProfile, isError: isProfileError } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: getProfile,
+  });
+  const userRevenue = userProfileData?.data?.revenue || 0; // Extract revenue
+
   const approveMutation = useMutation({
     mutationFn: approveOrder,
     onSuccess: () => {
@@ -41,6 +48,19 @@ const SupplierDashboard = () => {
     },
   });
 
+  const deliverMutation = useMutation({
+    mutationFn: markOrderAsDelivered,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['supplierGroupOrders']);
+      queryClient.invalidateQueries(['userProfile']); // NEW: Invalidate user profile query
+      // Optionally, show a success toast
+    },
+    onError: (error) => {
+      console.error("Error marking order as delivered:", error);
+      // Optionally, show an error toast
+    }
+  });
+
   const handleTrackClick = (order) => {
     setSelectedOrder(order);
     setIsTrackOpen(true);
@@ -48,6 +68,7 @@ const SupplierDashboard = () => {
 
   const activeOrders = groupOrders.filter(order => order.status === 'open');
   const processingOrders = groupOrders.filter(order => order.status === 'completed' || order.status === 'approved');
+  // The totalRevenue calculation below is no longer used for display, as we now fetch from userProfileData
   const totalRevenue = groupOrders
     .filter(order => order.status === 'completed' || order.status === 'delivered')
     .reduce((sum, order) => sum + (order.currentQty * (order.productId?.pricePerKg || 0)), 0);
@@ -66,7 +87,7 @@ const SupplierDashboard = () => {
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Products</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoadingProducts ? <Loader2 className="h-6 w-6 animate-spin" /> : myProducts.length}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Active Group Orders</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoadingOrders ? <Loader2 className="h-6 w-6 animate-spin" /> : activeOrders.length}</div></CardContent></Card>
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Processing Orders</CardTitle><Truck className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{isLoadingOrders ? <Loader2 className="h-6 w-6 animate-spin" /> : processingOrders.length}</div></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Revenue</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₹{totalRevenue.toLocaleString()}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Revenue</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₹{isLoadingProfile ? <Loader2 className="h-6 w-6 animate-spin" /> : userRevenue.toLocaleString()}</div></CardContent></Card>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
@@ -99,13 +120,23 @@ const SupplierDashboard = () => {
                               </button>
                             </div>
                           )}
-                          {order.status === 'approved' && ( // Add Track button for approved orders
-                            <button className="btn btn-sm btn-info" onClick={() => handleTrackClick(order)}>
-                              Track
-                            </button>
+                          {order.status === 'approved' && (
+                            <div className="flex gap-2">
+                              <button className="btn btn-sm btn-info" onClick={() => handleTrackClick(order)}>
+                                Track
+                              </button>
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => deliverMutation.mutate(order._id)}
+                                disabled={deliverMutation.isLoading}
+                              >
+                                {deliverMutation.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delivered'}
+                              </button>
+                            </div>
                           )}
                           {approveMutation.isError && <p className="text-destructive text-xs">Error approving</p>}
                           {rejectMutation.isError && <p className="text-destructive text-xs">Error rejecting</p>}
+                          {deliverMutation.isError && <p className="text-destructive text-xs">Error delivering</p>}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -30,6 +30,7 @@ const UserSchema = new mongoose.Schema({
   otp: { type: String }, // NEW: For OTP verification
   otpExpires: { type: Date }, // NEW: OTP expiration time
   isVerified: { type: Boolean, default: false }, // NEW: Email verification status
+  revenue: { type: Number, default: 0 }, // NEW: Supplier's total revenue
 }, { timestamps: true });
 
 // UPDATED: ProductSchema now includes reviews and an average rating

@@ -15,6 +15,7 @@ router.get('/profile', auth, controller.getProfile);
 router.post('/products', auth, authorize('supplier'), upload.single('image'), controller.createProduct);
 router.get('/products', auth, controller.getProducts);
 router.get('/products/my-products', auth, authorize('supplier'), controller.getMyProducts);
+router.get('/products/:id', controller.getProductById);
 router.post('/products/:id/review', auth, controller.createProductReview); // NEW
 
 // Group Orders
@@ -28,6 +29,7 @@ router.put('/orders/:orderId/modify', auth, authorize('vendor', 'customer'), con
 // Supplier actions on orders
 router.put('/orders/:orderId/approve', auth, authorize('supplier'), controller.approveGroupOrder);
 router.put('/orders/:orderId/reject', auth, authorize('supplier'), controller.rejectGroupOrder);
+router.put('/orders/:orderId/deliver', auth, authorize('supplier'), controller.markOrderAsDelivered);
 
 // Order summary for vendor tracking UI
 router.get('/orders/:orderId/summary', auth, controller.getOrderSummary);

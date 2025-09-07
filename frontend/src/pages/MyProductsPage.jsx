@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Package } from 'lucide-react';
 import AddProductDialog from '@/components/AddProductDialog'; // Assuming AddProductDialog is still needed here
+import { Link } from 'react-router-dom'; // Ensure this line is present
 
 const MyProductsPage = () => {
   const { data: productsData, isLoading: isLoadingProducts, isError: isProductsError } = useQuery({
@@ -46,12 +47,14 @@ const MyProductsPage = () => {
               </TableHeader>
               <TableBody>
                 {myProducts.map((product) => (
-                  <TableRow key={product._id}>
-                    <TableCell>
-                      {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="w-16 h-16 object-cover rounded-md" />}
-                    </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-right">₹{product.pricePerKg}/{product.unit}</TableCell>
+                  <TableRow key={product._id} className="cursor-pointer hover:bg-muted/50">
+                    <Link to={`/products/${product._id}`} className="contents"> {/* Use contents to make Link span the row */}
+                      <TableCell>
+                        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="w-16 h-16 object-cover rounded-md" />}
+                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-right">₹{product.pricePerKg}/{product.unit}</TableCell>
+                    </Link>
                   </TableRow>
                 ))}
               </TableBody>

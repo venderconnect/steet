@@ -11,13 +11,9 @@ export const getProducts = (opts = {}) => {
 
 
 export const createProduct = (data) => {
-  // Ensure optional fields are set
-  const productData = {
-    ...data,
-    availableQty: data.availableQty || 0,
-    image: data.image || null, // base64 string expected if provided
-  };
-  return api.post('/products', productData);
+  // data is already a FormData object from AddProductDialog.jsx
+  // Axios can directly send FormData objects, which will set the correct Content-Type header.
+  return api.post('/products', data);
 };
 
 /**
@@ -25,6 +21,10 @@ export const createProduct = (data) => {
  */
 export const getMyProducts = () => {
   return api.get('/products/my-products');
+};
+
+export const getProductById = (id) => {
+  return api.get(`/products/${id}`);
 };
 
 
