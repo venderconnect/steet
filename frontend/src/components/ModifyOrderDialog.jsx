@@ -17,7 +17,7 @@ const ModifyOrderDialog = ({ order, isOpen, onClose }) => {
 
   useEffect(() => {
     if (order && user) {
-      const participant = order.participants.find(p => p.user._id === user._id);
+      const participant = order.participants.find(p => p.user?._id === user._id);
       setQuantity(participant?.quantity || 0);
     }
   }, [order, user]);
@@ -36,7 +36,7 @@ const ModifyOrderDialog = ({ order, isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="bg-yellow-50"> {/* Added bg-yellow-50 class */}
         <DialogHeader>
           <DialogTitle>Modify Your Order</DialogTitle>
           <DialogDescription>Update your quantity for the {order.productId.name} group order.</DialogDescription>

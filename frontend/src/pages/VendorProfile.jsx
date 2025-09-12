@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getProfile } from '../services/authService';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import EditProfileDialog from '../components/EditProfileDialog'; // Import the new dialog
 
 const VendorProfile = () => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   const { data: profileData, isLoading, isError } = useQuery({
     queryKey: ['userProfile'],
     queryFn: getProfile,
@@ -38,7 +42,12 @@ const VendorProfile = () => {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">My Profile</h1>
+        <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
+          <Pencil className="mr-2 h-4 w-4" /> Edit Profile
+        </Button>
+      </div>
 
       <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-6">
         <h2 className="text-2xl font-semibold mb-4">Personal Information</h2>
@@ -98,6 +107,14 @@ const VendorProfile = () => {
             )}
           </div>
         </div>
+      )}
+
+      {user && (
+        <EditProfileDialog
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          currentUser={user}
+        />
       )}
     </div>
   );

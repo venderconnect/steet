@@ -1,12 +1,19 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getProfile } from '../services/authService';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getProfile, updateProfileLocation } from '../services/authService';
 import { getMyProducts } from '../services/productService';
-import { Loader2, Package } from 'lucide-react';
+import { Loader2, Package, Pencil } from 'lucide-react'; // Import Pencil
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { useToast } from '../hooks/use-toast';
+import EditProfileDialog from '../components/EditProfileDialog'; // Import the new dialog
 
 const SupplierProfilePage = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for edit modal
+
   const { data: profileData, isLoading: isLoadingProfile, isError: isErrorProfile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: getProfile,
@@ -16,6 +23,56 @@ const SupplierProfilePage = () => {
     queryKey: ['myProducts'],
     queryFn: getMyProducts,
   });
+
+  const updateLocationMutation = useMutation({
+    mutationFn: updateProfileLocation,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['userProfile']);
+      toast({
+        title: 'Location updated',
+        description: 'Your location has been successfully updated.',
+        variant: 'success',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Location update failed',
+        description: error.response?.data?.message || 'Could not update location. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleConfirmLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const address = user?.address ? `${user.address.street}, ${user.address.city}, ${user.address.state}, ${user.address.zipCode}` : 'Unknown Address';
+          updateLocationMutation.mutate({
+            location: {
+              lat: latitude,
+              lng: longitude,
+              address: address,
+            },
+          });
+        },
+        (error) => {
+          toast({
+            title: 'Geolocation Error',
+            description: error.message || 'Unable to retrieve your location. Please enable location services.',
+            variant: 'destructive',
+          });
+        }
+      );
+    } else {
+      toast({
+        title: 'Geolocation Not Supported',
+        description: 'Your browser does not support geolocation.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const user = profileData?.data;
   const myProducts = productsData?.data || [];
@@ -47,7 +104,12 @@ const SupplierProfilePage = () => {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold mb-6">My Supplier Profile</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">My Supplier Profile</h1>
+        <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
+          <Pencil className="mr-2 h-4 w-4" /> Edit Profile
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
@@ -113,6 +175,13 @@ const SupplierProfilePage = () => {
                     </div>
                   </>
                 )}
+                <Button
+                  onClick={handleConfirmLocation}
+                  className="w-full mt-4"
+                  disabled={updateLocationMutation.isLoading}
+                >
+                  {updateLocationMutation.isLoading ? 'Confirming...' : 'Confirm Location'}
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -156,6 +225,14 @@ const SupplierProfilePage = () => {
           </Card>
         </div>
       </div>
+
+      {user && (
+        <EditProfileDialog
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          currentUser={user}
+        />
+      )}
     </div>
   );
 };

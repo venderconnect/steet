@@ -15,10 +15,13 @@ import SupplierDashboard from './pages/SupplierDashboard';
 import SupplierProfile from './pages/SupplierProfile';
 import NotFound from './pages/NotFound';
 import MapSearch from './pages/MapSearch';
-import VendorProfile from './pages/VendorProfile'; // NEW
-import SupplierProfilePage from './pages/SupplierProfilePage'; // NEW
-import MyProductsPage from './pages/MyProductsPage'; // NEW
-import ProductDetail from './pages/ProductDetail'; // NEW
+import VendorProfile from './pages/VendorProfile';
+import SupplierProfilePage from './pages/SupplierProfilePage';
+import MyProductsPage from './pages/MyProductsPage';
+import ProductDetail from './pages/ProductDetail';
+import ChatPage from './pages/ChatPage';
+import InboxPage from './pages/InboxPage';
+import CompletedOrdersPage from './pages/CompletedOrdersPage';
 
 const queryClient = new QueryClient();
 
@@ -36,19 +39,20 @@ function App() {
               <Route path="/register" element={<Register />} />
               
               <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-              <Route path="/products/:id" element={<ProductDetail />} /> {/* NEW Product Detail Route */}
+              <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/map-search" element={<MapSearch />} />
               <Route path="/suppliers/:id" element={<SupplierProfile />} />
               <Route path="/orders" element={<ProtectedRoute allowedRoles={['vendor', 'customer']}><Orders /></ProtectedRoute>} />
               <Route path="/supplier" element={<ProtectedRoute allowedRoles={['supplier']}><SupplierDashboard /></ProtectedRoute>} />
               
-              {/* NEW Profile Routes */}
-              <Route path="/profile" element={<ProtectedRoute><VendorProfile /></ProtectedRoute>} /> {/* Generic profile, will adapt based on role */}
-              <Route path="/supplier-profile-page" element={<ProtectedRoute allowedRoles={['supplier']}><SupplierProfilePage /></ProtectedRoute>} /> {/* Specific supplier profile page */}
+              <Route path="/profile" element={<ProtectedRoute><VendorProfile /></ProtectedRoute>} />
+              <Route path="/supplier-profile-page" element={<ProtectedRoute allowedRoles={['supplier']}><SupplierProfilePage /></ProtectedRoute>} />
 
-              {/* NEW My Products Page */}
               <Route path="/my-products" element={<ProtectedRoute allowedRoles={['supplier']}><MyProductsPage /></ProtectedRoute>} />
+              <Route path="/completed-orders" element={<ProtectedRoute allowedRoles={['supplier']}><CompletedOrdersPage /></ProtectedRoute>} />
 
+              <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+              <Route path="/chat/:conversationId" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

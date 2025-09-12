@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getMyGroupOrders } from '../services/orderService';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // Import useMutation, useQueryClient
+import { getMyGroupOrders, cancelOrder } from '../services/orderService'; // Import cancelOrder
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { toast } from '../hooks/use-toast';
 
 const Orders = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient(); // Initialize queryClient
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isModifyOpen, setIsModifyOpen] = useState(false);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
@@ -47,9 +48,25 @@ const Orders = () => {
 
   const OrderCard = ({ order }) => {
     const progress = (order.currentQty / order.targetQty) * 100;
-    const userContribution = order.participants.find(p => p.user._id === user._id);
+    const userContribution = order.participants.find(p => p.user?._id === user._id);
 
     const statusText = order.status === 'open' ? 'Waiting for Supplier Approval' : order.status;
+
+    const cancelMutation = useMutation({
+      mutationFn: (orderId) => cancelOrder(orderId, "Vendor cancelled the order."), // Pass a default message
+      onSuccess: () => {
+        toast({ title: "Order Cancelled!", description: "The order has been removed from your list." });
+        queryClient.invalidateQueries({ queryKey: ['myOrders'] }); // Refresh orders list
+      },
+      onError: (err) => {
+        toast({ title: "Cancellation Failed", description: err.response?.data?.msg || "An error occurred during cancellation.", variant: "destructive" });
+      },
+    });
+
+    const handleCancelClick = () => {
+      // Add confirmation dialog if needed
+      cancelMutation.mutate(order._id);
+    };
 
     return (
       <Card>
@@ -89,6 +106,11 @@ const Orders = () => {
             
             {order.status === 'open' && (
               <Button size="sm" onClick={() => handleModifyClick(order)}>Modify</Button>
+            )}
+            {(order.status === 'open' || order.status === 'approved') && (
+              <Button size="sm" variant="destructive" onClick={handleCancelClick} disabled={cancelMutation.isPending}>
+                {cancelMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Cancel Order'}
+              </Button>
             )}
           </div>
         </CardContent>

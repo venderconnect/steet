@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Search, ShoppingCart, IndianRupee, Loader2, Package, MapPin } from 'lucide-react';
 import JoinOrderDialog from '@/components/JoinOrderDialog';
+import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
 
 const categories = ['All', 'Vegetables', 'Grains', 'Oils', 'Spices', 'Dairy', 'Pulses'];
 
@@ -34,8 +36,14 @@ const Products = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null); // NEW: User's current location
   const [locationEnabled, setLocationEnabled] = useState(false); // NEW: Toggle for location filtering
+  const [minPrice, setMinPrice] = useState(''); // NEW: Min price filter
+  const [maxPrice, setMaxPrice] = useState(''); // NEW: Max price filter
+  const [minRating, setMinRating] = useState('none'); // NEW: Min rating filter, default to 'none'
+  const [sortBy, setSortBy] = useState('none'); // NEW: Sort by option, default to 'none'
+  const [sortOrder, setSortOrder] = useState('asc'); // NEW: Sort order option
 
   const navigate = useNavigate(); // Initialize useNavigate
+  const { user } = useAuth(); // Get current user
 
   useEffect(() => {
     if (locationEnabled && navigator.geolocation) {
@@ -59,8 +67,19 @@ const Products = () => {
   }, [locationEnabled]);
 
   const { data: productsData, isLoading, isError } = useQuery({
-    queryKey: ['products', { prepared: showPreparedOnly }],
-    queryFn: () => getProducts({ prepared: showPreparedOnly }),
+    queryKey: ['products', { prepared: showPreparedOnly, search: searchTerm, minPrice, maxPrice, minRating, sortBy, sortOrder }],
+    queryFn: () => {
+      const params = {
+        prepared: showPreparedOnly,
+        search: searchTerm,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        minRating: minRating === 'none' ? undefined : minRating, // Don't send if 'none'
+        sortBy: sortBy === 'none' ? undefined : sortBy, // Don't send if 'none'
+        sortOrder: sortBy === 'none' ? undefined : sortOrder, // Only send sortOrder if sortBy is not 'none'
+      };
+      return getProducts(params);
+    },
   });
   let products = productsData?.data || [];
 
@@ -77,11 +96,9 @@ const Products = () => {
   }
 
   const filteredProducts = products.filter(product => {
-    const supplierName = product.supplier?.name || '';
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          supplierName.toLowerCase().includes(searchTerm.toLowerCase());
+    // Category filter is now applied after fetching, as backend handles other filters
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesCategory;
   });
 
   const handleJoinOrder = (product) => {
@@ -140,6 +157,69 @@ const Products = () => {
               {locationEnabled ? 'Location Filter ON' : 'Location Filter OFF'}
             </Button>
           </div>
+
+          {/* NEW: Price Range Filter */}
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              placeholder="Min Price"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="w-32"
+            />
+            <span>-</span>
+            <Input
+              type="number"
+              placeholder="Max Price"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="w-32"
+            />
+          </div>
+
+          {/* NEW: Min Rating Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Min. Supplier Rating:</span>
+            <Select value={minRating} onValueChange={setMinRating}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Rating" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Any</SelectItem>
+                <SelectItem value="1">1 Star</SelectItem>
+                <SelectItem value="2">2 Stars</SelectItem>
+                <SelectItem value="3">3 Stars</SelectItem>
+                <SelectItem value="4">4 Stars</SelectItem>
+                <SelectItem value="5">5 Stars</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* NEW: Sorting Options */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Sort By:</span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="price">Price</SelectItem>
+                <SelectItem value="rating">Rating</SelectItem>
+              </SelectContent>
+            </Select>
+            {sortBy !== 'none' && (
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Order" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">Asc</SelectItem>
+                  <SelectItem value="desc">Desc</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -169,7 +249,7 @@ const Products = () => {
                           {product.supplier.businessName || product.supplier.name}
                         </span>
                       ) : 'Unknown'}
-                      {product.distance !== Infinity && userLocation && (
+                      {typeof product.distance === 'number' && product.distance != null && !isNaN(product.distance) && isFinite(product.distance) && userLocation && (
                         <span className="ml-2 text-xs text-muted-foreground">({product.distance.toFixed(1)} km)</span>
                       )}
                     </CardDescription>
@@ -189,12 +269,14 @@ const Products = () => {
                     <p className="text-sm text-muted-foreground flex-grow">{product.description}</p>
                   </CardContent>
                 </Link>
-                <CardContent className="pt-0">
-                  <Button className="w-full" onClick={() => { handleJoinOrder(product); }}>
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Join/Create Group Order
-                  </Button>
-                </CardContent>
+                {(!user || user.role !== 'supplier') && (
+                  <CardContent className="pt-0">
+                    <Button className="w-full" onClick={() => { handleJoinOrder(product); }}>
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Join/Create Group Order
+                    </Button>
+                  </CardContent>
+                )}
               </Card>
             ))}
           </div>

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createProduct } from '../services/productService';
+import { createProduct, updateProduct } from '../services/productService'; // Import updateProduct
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -21,8 +21,7 @@ import { Loader2, PlusCircle } from 'lucide-react';
 const categories = ["Vegetables", "Grains", "Oils", "Spices", "Dairy", "Pulses", "Prepared", "Other"];
 const units = ["kg", "litre", "piece", "packet", "box"];
 
-const AddProductDialog = () => {
-  const [isOpen, setIsOpen] = useState(false);
+const AddProductDialog = ({ isOpen, onClose, productToEdit }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
@@ -34,25 +33,50 @@ const AddProductDialog = () => {
     minOrderQty: '',
     isPrepped: false,
     availableQty: '',
-    image: null,
+    image: null, // For new file upload
+    imageUrl: '', // For existing image URL
   });
 
-  const { mutate: addProduct, isPending } = useMutation({
-    mutationFn: createProduct,
-    onSuccess: (newProduct) => {
+  useEffect(() => {
+    if (productToEdit) {
+      setFormData({
+        name: productToEdit.name || '',
+        description: productToEdit.description || '',
+        pricePerKg: productToEdit.pricePerKg || '',
+        category: productToEdit.category || '',
+        unit: productToEdit.unit || 'kg',
+        minOrderQty: productToEdit.minOrderQty || '',
+        isPrepped: productToEdit.isPrepped || false,
+        availableQty: productToEdit.availableQty || '',
+        image: null, // No file selected initially for edit
+        imageUrl: productToEdit.imageUrl || '', // Existing image URL
+      });
+    } else {
+      // Reset form for add mode
+      setFormData({ name: '', description: '', pricePerKg: '', category: '', unit: 'kg', minOrderQty: '', isPrepped: false, availableQty: '', image: null, imageUrl: '' });
+    }
+  }, [productToEdit]);
+
+  const { mutate: submitProduct, isPending } = useMutation({
+    mutationFn: (data) => {
+      if (productToEdit) {
+        return updateProduct(productToEdit._id, data);
+      } else {
+        return createProduct(data);
+      }
+    },
+    onSuccess: (response) => {
       toast({
-        title: "Product Added!",
-        description: `${newProduct.data.name} is now available in the marketplace.`,
+        title: productToEdit ? "Product Updated!" : "Product Added!",
+        description: `${response.data.product?.name || response.data.name} is now available in the marketplace.`,
       });
       queryClient.invalidateQueries({ queryKey: ['myProducts'] });
-      setIsOpen(false);
-      // Reset form for next time
-      setFormData({ name: '', description: '', pricePerKg: '', category: '', unit: 'kg', minOrderQty: '', isPrepped: false, availableQty: '', image: null });
+      onClose();
     },
     onError: (err) => {
       toast({
         title: "Error",
-        description: err.response?.data?.msg || "Could not add the product.",
+        description: err.response?.data?.msg || "Could not save the product.",
         variant: "destructive",
       });
     },
@@ -70,12 +94,11 @@ const AddProductDialog = () => {
   const handleFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    setFormData(prev => ({ ...prev, image: file })); // Store the File object
+    setFormData(prev => ({ ...prev, image: file, imageUrl: URL.createObjectURL(file) })); // Store file and create preview URL
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('formData before sending:', formData);
     const formDataToSend = new FormData();
     formDataToSend.append('name', formData.name);
     formDataToSend.append('description', formData.description);
@@ -87,26 +110,27 @@ const AddProductDialog = () => {
     formDataToSend.append('availableQty', formData.availableQty);
     if (formData.image) {
       formDataToSend.append('image', formData.image);
+    } else if (formData.imageUrl) { // If no new image, but existing imageUrl, send it
+      formDataToSend.append('imageUrl', formData.imageUrl);
     }
-    for (let pair of formDataToSend.entries()) {
-        console.log(pair[0]+ ', ' + pair[1]);
-    }
-    addProduct(formDataToSend);
+    submitProduct(formDataToSend);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="w-4 h-4 mr-2" />
-          Add New Product
-        </Button>
+        {!productToEdit && (
+          <Button>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Add New Product
+          </Button>
+        )}
       </DialogTrigger>
-  <DialogContent className="sm:max-w-[425px] bg-white text-black dark:bg-gray-800 dark:text-white">
+  <DialogContent className="sm:max-w-[425px] bg-green-50"> {/* Added bg-green-50 class */}
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>{productToEdit ? "Edit Product" : "Add New Product"}</DialogTitle>
           <DialogDescription>
-            Fill in the details below to list a new item in the marketplace.
+            {productToEdit ? "Make changes to your product details." : "Fill in the details below to list a new item in the marketplace."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -151,6 +175,9 @@ const AddProductDialog = () => {
             <div className="space-y-2">
               <Label htmlFor="image">Image</Label>
               <Input id="image" name="image" type="file" accept="image/*" onChange={handleFile} />
+              {formData.imageUrl && !formData.image && (
+                <img src={formData.imageUrl} alt="Current Product Image" className="mt-2 w-24 h-24 object-cover rounded-md" />
+              )}
             </div>
           </div>
            <div className="flex items-center space-x-2">
@@ -160,7 +187,7 @@ const AddProductDialog = () => {
           <DialogFooter>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Add Product
+              {productToEdit ? "Save Changes" : "Add Product"}
             </Button>
           </DialogFooter>
         </form>

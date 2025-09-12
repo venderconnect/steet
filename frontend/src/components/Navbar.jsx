@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { useAuth } from '../context/AuthContext';
-import { User as UserIcon, LogOut, ShoppingCart } from 'lucide-react';
+import { User as UserIcon, LogOut, ShoppingCart, MessageSquare } from 'lucide-react'; // Import MessageSquare
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,11 +9,22 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
+import { useQuery } from '@tanstack/react-query'; // Import useQuery
+import { getUnreadMessageCount } from '../services/chatService'; // Import chat service
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
+
+  const { data: unreadCountData } = useQuery({
+    queryKey: ['unreadMessageCount'],
+    queryFn: getUnreadMessageCount,
+    enabled: isAuthenticated, // Only fetch if authenticated
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const unreadCount = unreadCountData?.data?.unreadCount || 0;
 
   return (
     <nav className="bg-background/95 border-b sticky top-0 z-50 backdrop-blur-sm">
@@ -45,6 +56,15 @@ const Navbar = () => {
                    My Orders
                  </Link>
               )}
+              <Link to="/inbox" className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/inbox') ? 'text-primary' : 'text-muted-foreground'} flex items-center`}>
+                <MessageSquare className="w-4 h-4 mr-1" />
+                Inbox
+                {unreadCount > 0 && (
+                  <span className="ml-1 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
             </div>
           )}
 

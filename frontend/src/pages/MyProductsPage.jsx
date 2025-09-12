@@ -1,18 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getMyProducts } from '../services/productService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package } from 'lucide-react';
-import AddProductDialog from '@/components/AddProductDialog'; // Assuming AddProductDialog is still needed here
-import { Link } from 'react-router-dom'; // Ensure this line is present
+import { Loader2, Package, Pencil } from 'lucide-react'; // Import Pencil icon
+import AddProductDialog from '@/components/AddProductDialog';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button'; // Import Button
 
 const MyProductsPage = () => {
+  const navigate = useNavigate();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState(null);
+
   const { data: productsData, isLoading: isLoadingProducts, isError: isProductsError } = useQuery({
     queryKey: ['myProducts'],
     queryFn: getMyProducts,
   });
   const myProducts = productsData?.data || [];
+
+  const handleEditClick = (product) => {
+    setProductToEdit(product);
+    setIsEditDialogOpen(true);
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -21,7 +31,7 @@ const MyProductsPage = () => {
           <h1 className="text-3xl font-bold tracking-tight">My Products</h1>
           <p className="text-muted-foreground">Manage all products you have listed.</p>
         </div>
-        <AddProductDialog /> {/* Keep AddProductDialog here for adding new products */}
+        <AddProductDialog isOpen={false} onClose={() => {}} /> {/* This is for adding new products, keep it as is */}
       </header>
 
       <Card>
@@ -43,18 +53,22 @@ const MyProductsPage = () => {
                   <TableHead>Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Actions</TableHead> {/* New column for actions */}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {myProducts.map((product) => (
-                  <TableRow key={product._id} className="cursor-pointer hover:bg-muted/50">
-                    <Link to={`/products/${product._id}`} className="contents"> {/* Use contents to make Link span the row */}
-                      <TableCell>
-                        {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="w-16 h-16 object-cover rounded-md" />}
-                      </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell className="text-right">₹{product.pricePerKg}/{product.unit}</TableCell>
-                    </Link>
+                  <TableRow key={product._id}> {/* Removed onClick from TableRow */}
+                    <TableCell>
+                      {product.imageUrl && <img src={product.imageUrl} alt={product.name} className="w-16 h-16 object-cover rounded-md" />}
+                    </TableCell>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="text-right">₹{product.pricePerKg}/{product.unit}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => handleEditClick(product)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -67,6 +81,15 @@ const MyProductsPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Product Dialog */}
+      {productToEdit && (
+        <AddProductDialog
+          isOpen={isEditDialogOpen}
+          onClose={() => setIsEditDialogOpen(false)}
+          productToEdit={productToEdit}
+        />
+      )}
     </div>
   );
 };

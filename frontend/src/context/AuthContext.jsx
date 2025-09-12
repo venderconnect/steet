@@ -13,8 +13,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem('token');
       const savedUser = localStorage.getItem('user');
+      console.log('AuthContext useEffect: token', token);
+      console.log('AuthContext useEffect: savedUser', savedUser);
       if (token && savedUser) {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setUser({ ...parsedUser, token }); // Combine parsed user with token
+        console.log('AuthContext useEffect: User set from localStorage');
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
@@ -25,20 +29,27 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, role) => {
     try {
-      const res = await authService.login({ email, password });
+      console.log('AuthContext login: Attempting login for', email);
+      const res = await authService.login({ email, password, role });
       const { token, user: userData } = res.data;
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      const userWithToken = { ...userData, token }; // Add token to user object
+      console.log('AuthContext login: Saving userWithToken to localStorage:', userWithToken);
+      localStorage.setItem('user', JSON.stringify(userWithToken));
+      setUser(userWithToken);
       toast({ title: 'Login Successful', description: `Welcome back, ${userData.name}!` });
-      return true;
+      console.log('AuthContext login: Login successful');
+      return { success: true };
     } catch (err) {
+      console.error('AuthContext login: Login failed', err);
       toast({ title: 'Login Failed', description: err.response?.data?.msg || 'Invalid credentials', variant: 'destructive' });
-      return false;
+      return { success: false, message: err.response?.data?.msg || 'Invalid credentials' };
     }
   };
+
+  
 
   const register = async (userData) => {
     try {
@@ -52,13 +63,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const verifyOtp = async (email, otp) => {
+  const verifyOtp = async (email, otp, role) => {
     try {
-      const res = await authService.verifyOtp({ email, otp });
+      const res = await authService.verifyOtp({ email, otp, role });
       const { token, user: userData } = res.data;
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      const userWithToken = { ...userData, token }; // Add token to user object
+      console.log('AuthContext: Saving userWithToken to localStorage:', userWithToken);
+      localStorage.setItem('user', JSON.stringify(userWithToken));
+      setUser(userWithToken);
       toast({ title: 'Verification Successful', description: res.data.msg || 'Your email has been verified!' });
       return { success: true, message: res.data.msg };
     } catch (err) {

@@ -49,7 +49,7 @@ const RoutingMachine = ({ start, end, onRouteFound }) => {
         map.routingControl = null;
       }
     };
-  }, [map, start, end, onRouteFound, apiKey]); // Add apiKey to dependency array
+  }, [map, start, end, onRouteFound]); // Removed apiKey from dependency array
 
   return null;
 };

@@ -2,21 +2,23 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyProducts } from '../services/productService';
-import { getSupplierGroupOrders, approveOrder, rejectOrder, markOrderAsDelivered } from '../services/orderService';
-import { getProfile } from '../services/authService'; // NEW: Import getProfile
+import { getSupplierGroupOrders, approveOrder, rejectOrder, markOrderAsDelivered, getSupplierAnalytics } from '../services/orderService';
+import { getProfile } from '../services/authService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Package, TrendingUp, Clock, Truck } from 'lucide-react';
+import { Loader2, Package, TrendingUp, Clock, Truck, BarChart, Star } from 'lucide-react';
 import AddProductDialog from '@/components/AddProductDialog';
-import OrderTrackingDialog from '@/components/OrderTrackingDialog'; // Import OrderTrackingDialog
-import { useState } from 'react'; // Import useState
+import OrderTrackingDialog from '@/components/OrderTrackingDialog';
+import { useState } from 'react';
+import MonthlyRevenueChart from '@/components/MonthlyRevenueChart';
+import TopProductsList from '@/components/TopProductsList';
 
 const SupplierDashboard = () => {
   const queryClient = useQueryClient();
-  const [isTrackOpen, setIsTrackOpen] = useState(false); // State for tracking dialog
-  const [selectedOrder, setSelectedOrder] = useState(null); // State for selected order
+  const [isTrackOpen, setIsTrackOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const { data: productsData, isLoading: isLoadingProducts, isError: isProductsError } = useQuery({
+  const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['myProducts'],
     queryFn: getMyProducts,
   });
@@ -28,36 +30,40 @@ const SupplierDashboard = () => {
   });
   const groupOrders = ordersData?.data || [];
 
-  const { data: userProfileData, isLoading: isLoadingProfile, isError: isProfileError } = useQuery({
+  const { data: userProfileData, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['userProfile'],
     queryFn: getProfile,
   });
-  const userRevenue = userProfileData?.data?.revenue || 0; // Extract revenue
+  const userRevenue = userProfileData?.data?.revenue || 0;
+
+  const { data: analyticsData, isLoading: isLoadingAnalytics, isError: isAnalyticsError } = useQuery({
+    queryKey: ['supplierAnalytics'],
+    queryFn: getSupplierAnalytics,
+  });
 
   const approveMutation = useMutation({
     mutationFn: approveOrder,
     onSuccess: () => {
-      queryClient.invalidateQueries(['supplierGroupOrders']);
+      queryClient.invalidateQueries({ queryKey: ['supplierGroupOrders'] });
     },
   });
 
   const rejectMutation = useMutation({
     mutationFn: rejectOrder,
     onSuccess: () => {
-      queryClient.invalidateQueries(['supplierGroupOrders']);
+      queryClient.invalidateQueries({ queryKey: ['supplierGroupOrders'] });
     },
   });
 
   const deliverMutation = useMutation({
     mutationFn: markOrderAsDelivered,
     onSuccess: () => {
-      queryClient.invalidateQueries(['supplierGroupOrders']);
-      queryClient.invalidateQueries(['userProfile']); // NEW: Invalidate user profile query
-      // Optionally, show a success toast
+      queryClient.invalidateQueries({ queryKey: ['supplierGroupOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['supplierAnalytics'] });
     },
     onError: (error) => {
       console.error("Error marking order as delivered:", error);
-      // Optionally, show an error toast
     }
   });
 
@@ -67,11 +73,10 @@ const SupplierDashboard = () => {
   };
 
   const activeOrders = groupOrders.filter(order => order.status === 'open');
-  const processingOrders = groupOrders.filter(order => order.status === 'completed' || order.status === 'approved');
-  // The totalRevenue calculation below is no longer used for display, as we now fetch from userProfileData
-  const totalRevenue = groupOrders
-    .filter(order => order.status === 'completed' || order.status === 'delivered')
-    .reduce((sum, order) => sum + (order.currentQty * (order.productId?.pricePerKg || 0)), 0);
+  const processingOrders = groupOrders.filter(order => order.status === 'approved');
+  const incomingGroupOrders = groupOrders.filter(order => order.status === 'open' || order.status === 'approved');
+  const completedOrders = groupOrders.filter(order => order.status === 'completed' || order.status === 'delivered');
+  const top5CompletedOrders = completedOrders.slice(0, 5);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -90,21 +95,21 @@ const SupplierDashboard = () => {
         <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Revenue</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">₹{isLoadingProfile ? <Loader2 className="h-6 w-6 animate-spin" /> : userRevenue.toLocaleString()}</div></CardContent></Card>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-8 lg:grid-cols-3 mb-8">
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Incoming Group Orders</CardTitle>
-              <CardDescription>Group orders created for your products.</CardDescription>
+              <CardDescription>Group orders that are open or in processing.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoadingOrders ? <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div> :
                isOrdersError ? <p className="text-destructive text-center py-4">Error loading orders.</p> :
-               groupOrders.length > 0 ? (
+               incomingGroupOrders.length > 0 ? (
                 <Table>
                   <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Progress (Qty)</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {groupOrders.map((order) => (
+                    {incomingGroupOrders.map((order) => (
                       <TableRow key={order._id}>
                         <TableCell className="font-medium">{order.productId?.name || 'N/A'}</TableCell>
                         <TableCell>{order.currentQty} / {order.targetQty} {order.productId?.unit}</TableCell>
@@ -112,37 +117,34 @@ const SupplierDashboard = () => {
                         <TableCell>
                           {order.status === 'open' && (
                             <div className="flex gap-2">
-                              <button className="btn btn-sm btn-success" onClick={() => approveMutation.mutate(order._id)} disabled={approveMutation.isLoading}>
-                                {approveMutation.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
-                              </button>
-                              <button className="btn btn-sm btn-ghost" onClick={() => rejectMutation.mutate(order._id)} disabled={rejectMutation.isLoading}>
-                                {rejectMutation.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
-                              </button>
+                              <Button size="sm" onClick={() => approveMutation.mutate(order._id)} disabled={approveMutation.isPending}>
+                                {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => rejectMutation.mutate(order._id)} disabled={rejectMutation.isPending}>
+                                {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
+                              </Button>
                             </div>
                           )}
                           {order.status === 'approved' && (
                             <div className="flex gap-2">
-                              <button className="btn btn-sm btn-info" onClick={() => handleTrackClick(order)}>
+                              <Button size="sm" variant="outline" onClick={() => handleTrackClick(order)}>
                                 Track
-                              </button>
-                              <button
-                                className="btn btn-sm btn-success"
+                              </Button>
+                              <Button
+                                size="sm"
                                 onClick={() => deliverMutation.mutate(order._id)}
-                                disabled={deliverMutation.isLoading}
+                                disabled={deliverMutation.isPending}
                               >
-                                {deliverMutation.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delivered'}
-                              </button>
+                                {deliverMutation.isPending ? <Loader2 className="h-4 w-6 animate-spin" /> : 'Delivered'}
+                              </Button>
                             </div>
                           )}
-                          {approveMutation.isError && <p className="text-destructive text-xs">Error approving</p>}
-                          {rejectMutation.isError && <p className="text-destructive text-xs">Error rejecting</p>}
-                          {deliverMutation.isError && <p className="text-destructive text-xs">Error delivering</p>}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              ) : <p className="text-center text-muted-foreground py-4">No group orders for your products yet.</p>}
+              ) : <p className="text-center text-muted-foreground py-4">No incoming group orders for your products yet.</p>}
             </CardContent>
           </Card>
         </div>
@@ -163,7 +165,81 @@ const SupplierDashboard = () => {
           </Card>
         </div>
       </div>
-    {/* Order Tracking Dialog */}
+
+      <div className="grid gap-8 lg:grid-cols-3 mb-8">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Completed Orders</CardTitle>
+              <CardDescription>Group orders that have been successfully delivered.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingOrders ? <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div> :
+               isOrdersError ? <p className="text-destructive text-center py-4">Error loading orders.</p> : 
+               completedOrders.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead>Vendor Name</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Order Date</TableHead>
+                        <TableHead>Delivery Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {top5CompletedOrders.map((order) => (
+                        order.participants.map(participant => (
+                          <TableRow key={`${order._id}-${participant.user?._id}`}>
+                            <TableCell className="font-medium">{order.productId?.name || 'N/A'}</TableCell>
+                            <TableCell>{participant.user ? participant.user.name : 'N/A'}</TableCell>
+                            <TableCell>{participant.user && participant.user.address ? [participant.user.address.street, participant.user.address.city, participant.user.address.zipCode].filter(Boolean).join(', ') : 'N/A'}</TableCell>
+                            <TableCell>{participant.quantity} {order.productId?.unit}</TableCell>
+                            <TableCell className="capitalize">{order.status}</TableCell>
+                            <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+                            <TableCell>{order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : 'N/A'}</TableCell>
+                          </TableRow>
+                        ))
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {completedOrders.length > 5 && (
+                    <div className="mt-4 text-center">
+                      <Link to="/completed-orders">
+                        <Button variant="link">More Delivered Orders</Button>
+                      </Link>
+                    </div>
+                  )}
+                </>
+              ) : <p className="text-center text-muted-foreground py-4">No completed orders yet.</p>}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingAnalytics ? <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div> :
+               isAnalyticsError ? <p className="text-destructive text-center py-4">Error loading analytics.</p> : 
+               <MonthlyRevenueChart data={analyticsData?.data?.monthlyRevenue || []} />}
+            </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-1">
+          {isLoadingAnalytics ? <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div> :
+           isAnalyticsError ? <p className="text-destructive text-center py-4">Error loading analytics.</p> : 
+           <TopProductsList data={analyticsData?.data?.topProducts || []} />}
+        </div>
+      </div>
+
       <OrderTrackingDialog 
         orderId={selectedOrder?._id} 
         isOpen={isTrackOpen} 

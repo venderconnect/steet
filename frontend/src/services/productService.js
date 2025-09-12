@@ -6,6 +6,12 @@ import api from './axiosConfig';
 export const getProducts = (opts = {}) => {
   const params = {};
   if (opts.prepared) params.prepared = true;
+  if (opts.search) params.search = opts.search;
+  if (opts.minPrice) params.minPrice = opts.minPrice;
+  if (opts.maxPrice) params.maxPrice = opts.maxPrice;
+  if (opts.minRating) params.minRating = opts.minRating;
+  if (opts.sortBy) params.sortBy = opts.sortBy;
+  if (opts.sortOrder) params.sortOrder = opts.sortOrder;
   return api.get('/products', { params });
 };
 
@@ -14,6 +20,11 @@ export const createProduct = (data) => {
   // data is already a FormData object from AddProductDialog.jsx
   // Axios can directly send FormData objects, which will set the correct Content-Type header.
   return api.post('/products', data);
+};
+
+export const updateProduct = (productId, data) => {
+  // data is expected to be a FormData object
+  return api.patch(`/products/${productId}`, data);
 };
 
 /**

@@ -15,6 +15,7 @@ import {
 } from './ui/dialog';
 import { useToast } from './ui/use-toast';
 import { Loader2, IndianRupee, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const JoinOrderDialog = ({ product, isOpen, onClose }) => {
   const [quantity, setQuantity] = useState(product?.minOrderQty || 10);
@@ -36,29 +37,31 @@ const JoinOrderDialog = ({ product, isOpen, onClose }) => {
 
   const { mutate: join, isPending: isJoining } = useMutation({
     mutationFn: ({ orderId, qty }) => joinGroupOrder(orderId, qty),
-    onSuccess: () => {
-      toast({ title: "Successfully joined order!" });
+    onSuccess: (response) => {
+      toast({ title: response.data.msg || "Successfully joined order!" });
       queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['groupOrders', product?._id] });
       onClose();
     },
-    onError: (err) => toast({ title: "Error", description: err.response?.data?.msg, variant: "destructive" }),
+    onError: (err) => toast({ title: "Error joining order", description: err.response?.data?.msg || "An unexpected error occurred.", variant: "destructive" }),
   });
 
   const { mutate: create, isPending: isCreating } = useMutation({
     mutationFn: ({ productId, qty }) => createGroupOrder(productId, 100, qty), // Target Qty is hardcoded
-    onSuccess: () => {
-        toast({ title: "New group order created!" });
+    onSuccess: (response) => {
+        toast({ title: response.data.msg || "New group order created!" });
         queryClient.invalidateQueries({ queryKey: ['myOrders'] });
+        queryClient.invalidateQueries({ queryKey: ['groupOrders', product?._id] });
         onClose();
     },
-    onError: (err) => toast({ title: "Error", description: err.response?.data?.msg, variant: "destructive" }),
+    onError: (err) => toast({ title: "Error creating order", description: err.response?.data?.msg || "An unexpected error occurred.", variant: "destructive" }),
   });
 
   if (!product) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl bg-green-50 z-50"> {/* Added z-50 class */}
         <DialogHeader>
           <DialogTitle>{product.name}</DialogTitle>
           <DialogDescription>Join an existing group buy or start a new one.</DialogDescription>

@@ -67,3 +67,11 @@ export const markOrderAsDelivered = (orderId) => {
 export const getOrderSummary = (orderId) => {
   return api.get(`/orders/${orderId}/summary`);
 };
+
+export const getSupplierAnalytics = () => {
+  return api.get('/suppliers/analytics');
+};
+
+export const cancelOrder = (orderId, cancellationMessage) => {
+  return api.patch(`/orders/${orderId}/cancel`, { cancellationMessage });
+};
