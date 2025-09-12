@@ -194,3 +194,26 @@ exports.updateProduct = async (req, res) => {
     res.status(500).json({ msg: err.message });
   }
 };
+
+exports.deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ msg: 'Product not found.' });
+    }
+
+    // Ensure only the owner can delete the product
+    if (product.supplier.toString() !== req.user.id) {
+      return res.status(403).json({ msg: 'Forbidden: You do not own this product.' });
+    }
+
+    await product.deleteOne(); // Use deleteOne() for Mongoose 5.x and above
+
+    res.status(200).json({ msg: 'Product deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ msg: err.message });
+  }
+};

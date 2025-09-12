@@ -37,6 +37,7 @@ router.get('/products', auth, productController.getProducts);
 router.get('/products/my-products', auth, authorize('supplier'), productController.getMyProducts);
 router.get('/products/:id', productController.getProductById);
 router.post('/products/:id/review', auth, productController.createProductReview); // NEW
+router.delete('/products/:id', auth, authorize('supplier'), productController.deleteProduct); // NEW: Delete product
 
 // Group Orders
 router.post('/group-orders', auth, authorize('vendor', 'customer'), orderController.createGroupOrder);

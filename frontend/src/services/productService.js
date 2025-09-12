@@ -61,3 +61,7 @@ export const getNearbySuppliers = (lat, lng, radiusKm = 50, productId) => {
   if (productId) params.productId = productId;
   return api.get('/suppliers', { params });
 };
+
+export const deleteProduct = (productId) => {
+  return api.delete(`/products/${productId}`);
+};
