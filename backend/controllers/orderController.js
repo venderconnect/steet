@@ -162,8 +162,9 @@ exports.markOrderAsDelivered = async (req, res) => {
       return res.status(400).json({ msg: 'Order must be in "approved" status to be marked as delivered.' });
     }
 
-    // Update order status to 'completed'
-    order.status = 'completed';
+    // Update order status to 'delivered' and set the delivered date
+    order.status = 'delivered';
+    order.deliveryDate = new Date(); // Set current date and time as delivered date
     await order.save();
 
     // Calculate order total and update supplier revenue
@@ -243,7 +244,7 @@ exports.getOrderTracking = async (req, res) => {
       events.push({ status: 'Order Confirmed & Processing', timestamp: new Date() });
     } else if (groupOrder.status === 'delivered') {
       events.push({ status: 'Order Confirmed & Processing', timestamp: new Date(groupOrder.updatedAt - 86400000) });
-      events.push({ status: 'Delivered', timestamp: groupOrder.updatedAt });
+      events.push({ status: 'Delivered', timestamp: groupOrder.deliveryDate });
     }
 
     const trackingInfo = {

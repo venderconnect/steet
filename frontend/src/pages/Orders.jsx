@@ -72,7 +72,7 @@ const Orders = () => {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>{order.productId.name}</CardTitle>
+            <CardTitle>{order.productId?.name}</CardTitle>
             <Badge variant="outline" className="capitalize">{statusText}</Badge>
           </div>
           <CardDescription>Order ID: {order._id.substring(0, 8)}...</CardDescription>
@@ -81,7 +81,7 @@ const Orders = () => {
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span>Order Progress</span>
-              <span>{order.currentQty}/{order.targetQty} {order.productId.unit}</span>
+              <span>{order.currentQty}/{order.targetQty} {order.productId?.unit}</span>
             </div>
             <Progress value={progress} />
           </div>
@@ -89,7 +89,7 @@ const Orders = () => {
             <div className="bg-muted/50 p-3 rounded-md">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm flex items-center"><Boxes className="w-4 h-4 mr-2" />Your Contribution</span>
-                <span className="font-bold text-lg">{userContribution.quantity} {order.productId.unit}</span>
+                <span className="font-bold text-lg">{userContribution.quantity} {order.productId?.unit}</span>
               </div>
             </div>
           )}

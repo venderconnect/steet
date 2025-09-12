@@ -76,7 +76,12 @@ const SupplierDashboard = () => {
   const processingOrders = groupOrders.filter(order => order.status === 'approved');
   const incomingGroupOrders = groupOrders.filter(order => order.status === 'open' || order.status === 'approved');
   const completedOrders = groupOrders.filter(order => order.status === 'completed' || order.status === 'delivered');
-  const top5CompletedOrders = completedOrders.slice(0, 5);
+  const sortedCompletedOrders = [...completedOrders].sort((a, b) => {
+    const dateA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : 0;
+    const dateB = b.deliveryDate ? new Date(b.deliveryDate).getTime() : 0;
+    return dateB - dateA; // Sort in descending order (newest first)
+  });
+  const top5CompletedOrders = sortedCompletedOrders.slice(0, 5);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -196,7 +201,7 @@ const SupplierDashboard = () => {
                           <TableRow key={`${order._id}-${participant.user?._id}`}>
                             <TableCell className="font-medium">{order.productId?.name || 'N/A'}</TableCell>
                             <TableCell>{participant.user ? participant.user.name : 'N/A'}</TableCell>
-                            <TableCell>{participant.user && participant.user.address ? [participant.user.address.street, participant.user.address.city, participant.user.address.zipCode].filter(Boolean).join(', ') : 'N/A'}</TableCell>
+                                                        <TableCell>{participant.user && participant.user.address ? [participant.user.address.street, participant.user.address.city, participant.user.address.zipCode].filter(Boolean).join(', ') : 'N/A'}</TableCell>
                             <TableCell>{participant.quantity} {order.productId?.unit}</TableCell>
                             <TableCell className="capitalize">{order.status}</TableCell>
                             <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>

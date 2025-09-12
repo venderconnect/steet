@@ -19,6 +19,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'; // Import AlertDialog components
 
+// Added a comment to trigger file change and re-evaluation
+
 const MyProductsPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient(); // Initialize queryClient
